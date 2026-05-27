@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: api
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+server:
+  error:
+    include-message: ALWAYS
+
+logging.level:
+  org.springframework.security: TRACE
+  org.springframework.web: DEBUG
+
+springdoc:
+  api-docs:
+    enabled: ${API_DOCS_ENABLED}
+
+jasypt:
+  encryptor:
+    password: mySecretKeys
+
+pseudo:
+  mapping:
+    file: data/mappings.enc
+  key: j0rqaGbymsASTTKdeBUwNnArEG1JH40O
