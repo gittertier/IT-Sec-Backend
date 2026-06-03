@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Base64;
 import java.util.Optional;
+import java.util.UUID;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -25,11 +26,11 @@ public class PseudoMappingService {
     }
   }
 
-  public Optional<String> pseudoIdFor(String userId) {
+  public Optional<UUID> pseudoIdFor(UUID userId) {
     return this.store.getPseudoId(userId);
   }
 
-  public Optional<String> userIdFor(String pseudoId) {
+  public Optional<UUID> userIdFor(UUID pseudoId) {
     return this.store.getUserId(pseudoId);
   }
 }

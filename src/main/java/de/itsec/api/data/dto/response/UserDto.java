@@ -1,8 +1,9 @@
 package de.itsec.api.data.dto.response;
 
 import de.itsec.api.data.authentication.User;
+import java.util.UUID;
 
-public record UserDto(Long id, String username) {
+public record UserDto(UUID id, String username) {
 
   /**
    * Creates a UserDto from a User entity.

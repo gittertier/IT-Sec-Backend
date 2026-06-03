@@ -7,12 +7,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.crypto.SecretKey;
 
@@ -22,8 +25,8 @@ public class EncryptedMappingStore {
   private final SecureRandom random = new SecureRandom();
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
-  private Map<String, String> userToPseudo = new HashMap<>();
-  private Map<String, String> pseudoToUser = new HashMap<>();
+  private Map<UUID, UUID> userToPseudo = new HashMap<>();
+  private Map<UUID, UUID> pseudoToUser = new HashMap<>();
 
   public EncryptedMappingStore(Path file, SecretKey key)
       throws IOException, GeneralSecurityException {
@@ -32,7 +35,7 @@ public class EncryptedMappingStore {
     load();
   }
 
-  public Optional<String> getPseudoId(String userId) {
+  public Optional<UUID> getPseudoId(UUID userId) {
     lock.readLock().lock();
     try {
       return Optional.ofNullable(userToPseudo.get(userId));
@@ -41,7 +44,7 @@ public class EncryptedMappingStore {
     }
   }
 
-  public Optional<String> getUserId(String pseudoId) {
+  public Optional<UUID> getUserId(UUID pseudoId) {
     lock.readLock().lock();
     try {
       return Optional.ofNullable(pseudoToUser.get(pseudoId));
@@ -50,18 +53,17 @@ public class EncryptedMappingStore {
     }
   }
 
-  public void putMapping(String userId, String pseudoId)
-      throws IOException, GeneralSecurityException {
+  public void putMapping(UUID userId, UUID pseudoId) throws IOException, GeneralSecurityException {
     lock.writeLock().lock();
     try {
-      Map<String, String> next = new HashMap<>(userToPseudo);
+      Map<UUID, UUID> next = new HashMap<>(userToPseudo);
 
-      String oldPseudo = next.put(userId, pseudoId);
+      UUID oldPseudo = next.put(userId, pseudoId);
       if (oldPseudo != null) {
         pseudoToUser.remove(oldPseudo);
       }
 
-      String existingUser = pseudoToUser.get(pseudoId);
+      UUID existingUser = pseudoToUser.get(pseudoId);
       if (existingUser != null && !existingUser.equals(userId)) {
         throw new IllegalArgumentException("Pseudo ID already assigned to another user");
       }
@@ -73,11 +75,11 @@ public class EncryptedMappingStore {
     }
   }
 
-  public void removeMappingByUserId(String userId) throws IOException, GeneralSecurityException {
+  public void removeMappingByUserId(UUID userId) throws IOException, GeneralSecurityException {
     lock.writeLock().lock();
     try {
-      Map<String, String> next = new HashMap<>(userToPseudo);
-      String pseudo = next.remove(userId);
+      Map<UUID, UUID> next = new HashMap<>(userToPseudo);
+      UUID pseudo = next.remove(userId);
       if (pseudo != null) {
         persist(next);
         rebuildIndexes(next);
@@ -94,11 +96,11 @@ public class EncryptedMappingStore {
     }
     byte[] bytes = Files.readAllBytes(file);
     String json = MappingCrypto.decrypt(bytes, key);
-    Map<String, String> loaded = parseJson(json);
+    Map<UUID, UUID> loaded = parseJson(json);
     rebuildIndexes(loaded);
   }
 
-  private void persist(Map<String, String> data) throws IOException, GeneralSecurityException {
+  private void persist(Map<UUID, UUID> data) throws IOException, GeneralSecurityException {
     String json = toJson(data);
     byte[] iv = new byte[12];
     random.nextBytes(iv);
@@ -117,24 +119,24 @@ public class EncryptedMappingStore {
     }
   }
 
-  private void rebuildIndexes(Map<String, String> data) {
+  private void rebuildIndexes(Map<UUID, UUID> data) {
     this.userToPseudo = Map.copyOf(data);
-    Map<String, String> reverse = new HashMap<>();
+    Map<UUID, UUID> reverse = new HashMap<>();
     for (var e : data.entrySet()) {
       reverse.put(e.getValue(), e.getKey());
     }
     this.pseudoToUser = Map.copyOf(reverse);
   }
 
-  private static Map<String, String> parseJson(String json) {
+  private static Map<UUID, UUID> parseJson(String json) {
     try {
-      return new ObjectMapper().readValue(json, new TypeReference<Map<String, String>>() {});
+      return new ObjectMapper().readValue(json, new TypeReference<Map<UUID, UUID>>() {});
     } catch (IOException e) {
       throw new IllegalStateException("Failed to parse mapping JSON", e);
     }
   }
 
-  private static String toJson(Map<String, String> data) {
+  private static String toJson(Map<UUID, UUID> data) {
     try {
       return new ObjectMapper().writeValueAsString(data);
     } catch (IOException e) {
