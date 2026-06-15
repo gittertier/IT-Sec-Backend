@@ -14,4 +14,28 @@ public class PublicExceptions {
       super("Username already exists");
     }
   }
+
+  public static class TerminNotFoundException extends AbstractPublicException {
+    public TerminNotFoundException() {
+      super("Appointment slot not found");
+    }
+  }
+
+  public static class SlotNotBookableException extends AbstractPublicException {
+    public SlotNotBookableException() {
+      super("Appointment slot is not available for booking");
+    }
+  }
+
+  public static class BookingLimitReachedException extends AbstractPublicException {
+    public BookingLimitReachedException(int limit) {
+      super("Booking limit reached: a user may hold at most " + limit + " upcoming appointments");
+    }
+  }
+
+  public static class NotYourTerminException extends AbstractPublicException {
+    public NotYourTerminException() {
+      super("Appointment does not belong to the current user");
+    }
+  }
 }

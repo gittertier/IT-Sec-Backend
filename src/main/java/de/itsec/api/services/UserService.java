@@ -69,6 +69,19 @@ public class UserService {
   }
 
   /**
+   * Looks up a user by username.
+   *
+   * @param username the username
+   * @return the matching user
+   * @throws UsernameNotFoundException if no such user exists
+   */
+  public User getUserByUsername(String username) {
+    return userRepository
+        .findByUsername(username)
+        .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+  }
+
+  /**
    * Saves a user to the repository.
    *
    * @param user The user to save.

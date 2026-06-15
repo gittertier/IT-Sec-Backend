@@ -107,6 +107,7 @@ public class EncryptedMappingStore {
     byte[] encrypted = MappingCrypto.encrypt(json, key, iv);
 
     Path dir = file.toAbsolutePath().getParent();
+    Files.createDirectories(dir);
     Path tmp = Files.createTempFile(dir, file.getFileName().toString(), ".tmp");
     try {
       Files.write(tmp, encrypted, StandardOpenOption.TRUNCATE_EXISTING);

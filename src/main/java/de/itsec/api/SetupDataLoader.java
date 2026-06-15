@@ -13,10 +13,18 @@ import org.springframework.stereotype.Component;
 import de.itsec.api.data.authentication.Privilege;
 import de.itsec.api.data.authentication.Role;
 import de.itsec.api.data.authentication.User;
+import de.itsec.api.data.termin.Praxis;
+import de.itsec.api.data.termin.Termin;
+import de.itsec.api.data.termin.TerminStatus;
 import de.itsec.api.repositories.authentication.PrivilegeRepository;
 import de.itsec.api.repositories.authentication.RoleRepository;
 import de.itsec.api.repositories.authentication.UserRepository;
+import de.itsec.api.repositories.termin.PraxisRepository;
+import de.itsec.api.repositories.termin.TerminRepository;
 import de.itsec.api.utils.AnnotationScanner;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Component
 public class SetupDataLoader
@@ -27,6 +35,10 @@ public class SetupDataLoader
   private RoleRepository roleRepository;
 
   private PrivilegeRepository privilegeRepository;
+
+  private PraxisRepository praxisRepository;
+
+  private TerminRepository terminRepository;
 
   PasswordEncoder passwordEncoder;
 
@@ -64,7 +76,30 @@ public class SetupDataLoader
     // TODO: change!!!!
     createAdminIfNotFound();
     createUserIfNotFound();
+    createDemoPraxisIfNotFound();
     alreadySetup = true;
+  }
+
+  private void createDemoPraxisIfNotFound() {
+    if (praxisRepository.findByName("Demo Praxis").isPresent()) {
+      return;
+    }
+    Praxis praxis = new Praxis();
+    praxis.setName("Demo Praxis");
+    praxis.setAddress("Musterstrasse 1, 12345 Musterstadt");
+    praxis = praxisRepository.save(praxis);
+
+    // Seed a handful of free 30-minute slots for the next business day.
+    LocalDateTime slotStart = LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(9, 0));
+    for (int i = 0; i < 8; i++) {
+      Termin termin = new Termin();
+      termin.setPraxis(praxis);
+      termin.setStartTime(slotStart);
+      termin.setEndTime(slotStart.plusMinutes(30));
+      termin.setStatus(TerminStatus.FREE);
+      terminRepository.save(termin);
+      slotStart = slotStart.plusMinutes(30);
+    }
   }
 
   private void createAdminIfNotFound() {
@@ -122,10 +157,14 @@ public class SetupDataLoader
   public SetupDataLoader(UserRepository userRepository,
                          RoleRepository roleRepository,
                          PrivilegeRepository privilegeRepository,
+                         PraxisRepository praxisRepository,
+                         TerminRepository terminRepository,
                          PasswordEncoder passwordEncoder) {
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.privilegeRepository = privilegeRepository;
+    this.praxisRepository = praxisRepository;
+    this.terminRepository = terminRepository;
     this.passwordEncoder = passwordEncoder;
   }
 }

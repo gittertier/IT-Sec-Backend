@@ -33,4 +33,27 @@ public class PseudoMappingService {
   public Optional<UUID> userIdFor(UUID pseudoId) {
     return this.store.getUserId(pseudoId);
   }
+
+  /**
+   * Returns the pseudonym for a user, creating and persisting a fresh one on first use.
+   *
+   * <p>The mapping between the real user id and the pseudonym only ever lives in the encrypted
+   * store, so callers can safely persist the returned pseudonym without leaking user identity.
+   *
+   * @param userId the real user id
+   * @return the stable pseudonym for that user
+   */
+  public synchronized UUID getOrCreatePseudoIdFor(UUID userId) {
+    Optional<UUID> existing = this.store.getPseudoId(userId);
+    if (existing.isPresent()) {
+      return existing.get();
+    }
+    UUID pseudoId = UUID.randomUUID();
+    try {
+      this.store.putMapping(userId, pseudoId);
+    } catch (IOException | GeneralSecurityException e) {
+      throw new RuntimeException(e);
+    }
+    return pseudoId;
+  }
 }
