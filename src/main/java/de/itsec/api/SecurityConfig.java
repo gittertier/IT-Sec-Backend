@@ -1,6 +1,7 @@
 package de.itsec.api;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -23,9 +24,20 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 @EnableMethodSecurity(securedEnabled = true)
 public class SecurityConfig {
 
+  // springdoc default endpoints, only exposed when the API docs are enabled
+  private static final String[] API_DOCS_WHITELIST = {
+    "/swagger-ui.html",
+    "/swagger-ui/**",
+    "/v3/api-docs",
+    "/v3/api-docs/**",
+    "/v3/api-docs.yaml"
+  };
+
   @Bean
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, AuthenticationConfiguration authConfig) {
+      HttpSecurity http,
+      AuthenticationConfiguration authConfig,
+      @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled) {
 
     AuthenticationManager authenticationManager = authConfig.getAuthenticationManager();
 
@@ -59,15 +71,13 @@ public class SecurityConfig {
 
         // auth
         .authorizeHttpRequests(
-            auth ->
-                auth.requestMatchers("/api/v1/public/**")
-                    .permitAll()
-                    .requestMatchers("/login")
-                    .permitAll()
-                    .requestMatchers("/error")
-                    .permitAll()
-                    .anyRequest()
-                    .authenticated())
+            auth -> {
+              auth.requestMatchers("/api/v1/public/**", "/login", "/error").permitAll();
+              if (apiDocsEnabled) {
+                auth.requestMatchers(API_DOCS_WHITELIST).permitAll();
+              }
+              auth.anyRequest().authenticated();
+            })
 
         // login filter before credentials checking for brute force
         .addFilterBefore(new RateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
