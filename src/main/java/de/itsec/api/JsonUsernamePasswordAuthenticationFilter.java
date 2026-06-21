@@ -49,7 +49,6 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
   private void padToMinimum(long startNanos) {
     long elapsed = System.nanoTime() - startNanos;
     long remaining = MIN_AUTH_NANOS - elapsed;
-    System.out.println(remaining);
     if (remaining > 0) {
       try {
         Thread.sleep(TimeUnit.NANOSECONDS.toMillis(remaining));
