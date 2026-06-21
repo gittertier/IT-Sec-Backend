@@ -15,6 +15,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.DelegatingSecurityContextRepository;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
@@ -47,10 +50,15 @@ public class SecurityConfig {
     jsonFilter.setFilterProcessesUrl("/api/v1/public/login");
     jsonFilter.setUsernameParameter("username");
     jsonFilter.setPasswordParameter("password");
+    // Persist the authenticated context in the session. The filter is wired manually (not via the
+    // formLogin DSL), so Spring does not inject the shared session-backed repository for us; without
+    // this the default request-scoped repository would drop the login right after the response.
+    jsonFilter.setSecurityContextRepository(
+        new DelegatingSecurityContextRepository(
+            new RequestAttributeSecurityContextRepository(),
+            new HttpSessionSecurityContextRepository()));
     jsonFilter.setAuthenticationSuccessHandler(
         (req, res, auth) -> {
-          req.getSession(true);
-
           res.setStatus(HttpServletResponse.SC_OK);
           res.setContentType(MediaType.APPLICATION_JSON_VALUE);
           res.getWriter().write("{\"message\":\"login successful\"}");
@@ -104,7 +112,7 @@ public class SecurityConfig {
                 logout
                     .logoutUrl("/api/v1/public/logout")
                     .invalidateHttpSession(true)
-                    .deleteCookies("SESSION")
+                    .deleteCookies("JSESSIONID")
                     .logoutSuccessHandler(
                         (req, res, auth) -> res.setStatus(HttpServletResponse.SC_NO_CONTENT)))
         .exceptionHandling(
