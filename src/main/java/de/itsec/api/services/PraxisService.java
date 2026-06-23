@@ -2,8 +2,9 @@ package de.itsec.api.services;
 
 import de.itsec.api.data.termin.Praxis;
 import de.itsec.api.repositories.termin.PraxisRepository;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /** Management and lookup of medical practices (Praxen). */
@@ -30,19 +31,20 @@ public class PraxisService {
    * Lists praxen, optionally filtered by postal code and/or a name fragment. A {@code null} or blank
    * filter value is ignored.
    */
-  public List<Praxis> find(String postalCode, String name) {
+  public Page<Praxis> find(String postalCode, String name, Pageable pageable) {
     boolean hasPostalCode = postalCode != null && !postalCode.isBlank();
     boolean hasName = name != null && !name.isBlank();
 
     if (hasPostalCode && hasName) {
-      return praxisRepository.findByPostalCodeAndNameContainingIgnoreCase(postalCode, name);
+      return praxisRepository.findByPostalCodeAndNameContainingIgnoreCase(
+          postalCode, name, pageable);
     }
     if (hasPostalCode) {
-      return praxisRepository.findByPostalCode(postalCode);
+      return praxisRepository.findByPostalCode(postalCode, pageable);
     }
     if (hasName) {
-      return praxisRepository.findByNameContainingIgnoreCase(name);
+      return praxisRepository.findByNameContainingIgnoreCase(name, pageable);
     }
-    return praxisRepository.findAll();
+    return praxisRepository.findAll(pageable);
   }
 }

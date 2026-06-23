@@ -8,9 +8,10 @@ import de.itsec.api.repositories.termin.PraxisRepository;
 import de.itsec.api.repositories.termin.TerminRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -80,14 +81,15 @@ public class TerminService {
    * Filters slots by praxis, postal code, status and start-time range. Every argument is optional;
    * {@code null} disables that criterion.
    */
-  public List<Termin> filter(
+  public Page<Termin> filter(
       UUID praxisId,
       String postalCode,
       TerminStatus status,
       LocalDateTime from,
-      LocalDateTime to) {
+      LocalDateTime to,
+      Pageable pageable) {
     String pc = (postalCode != null && !postalCode.isBlank()) ? postalCode : null;
-    return terminRepository.filter(praxisId, pc, status, from, to);
+    return terminRepository.filter(praxisId, pc, status, from, to, pageable);
   }
 
   /**
@@ -99,12 +101,13 @@ public class TerminService {
    * @param from earliest start time to return; lets callers look further into the future. {@code
    *     null} or a past value defaults to "now" so past slots are never returned
    */
-  public List<Termin> getFreeSlots(UUID praxisId, String plz, LocalDateTime from) {
+  public Page<Termin> getFreeSlots(
+      UUID praxisId, String plz, LocalDateTime from, Pageable pageable) {
     String postalCode = (plz != null && !plz.isBlank()) ? plz : null;
     LocalDateTime now = LocalDateTime.now();
     LocalDateTime effectiveFrom = (from != null && from.isAfter(now)) ? from : now;
     return terminRepository.filter(
-        praxisId, postalCode, TerminStatus.FREE, effectiveFrom, null);
+        praxisId, postalCode, TerminStatus.FREE, effectiveFrom, null, pageable);
   }
 
   /**
@@ -113,14 +116,15 @@ public class TerminService {
    * appointments at praxis X on day Y"). Always scoped to the caller's pseudonym, so no other user's
    * appointments can be reached.
    */
-  public List<Termin> getAppointmentsForUser(
+  public Page<Termin> getAppointmentsForUser(
       UUID userId,
       UUID praxisId,
       TerminStatus status,
       LocalDateTime from,
-      LocalDateTime to) {
+      LocalDateTime to,
+      Pageable pageable) {
     UUID pseudoId = pseudoMappingService.getOrCreatePseudoIdFor(userId);
-    return terminRepository.filterForPseudoUser(pseudoId, praxisId, status, from, to);
+    return terminRepository.filterForPseudoUser(pseudoId, praxisId, status, from, to, pageable);
   }
 
   /**
@@ -128,11 +132,10 @@ public class TerminService {
    *
    * @param slotId the slot to book
    * @param userId the real user id of the booking user
-   * @param note optional free-text note, stored encrypted; may be {@code null}
    * @return the booked slot
    */
   @Transactional
-  public Termin book(UUID slotId, UUID userId, String note) {
+  public Termin book(UUID slotId, UUID userId) {
     Termin slot =
         terminRepository
             .findById(slotId)
@@ -155,9 +158,6 @@ public class TerminService {
 
     slot.setStatus(TerminStatus.BOOKED);
     slot.setPseudoUserId(pseudoId);
-    if (note != null && !note.isBlank()) {
-      slot.setNote(note);
-    }
     return terminRepository.save(slot);
   }
 
@@ -181,7 +181,6 @@ public class TerminService {
 
     slot.setStatus(TerminStatus.FREE);
     slot.setPseudoUserId(null);
-    slot.setNote(null);
     terminRepository.save(slot);
   }
 }

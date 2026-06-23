@@ -1,8 +1,6 @@
 package de.itsec.api.data.termin;
 
-import de.itsec.api.crypto.StringCryptoConverter;
 import jakarta.persistence.Column;
-import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -56,8 +54,4 @@ public class Termin {
    * appointment (e.g. for a follow-up dose). Free text, not personal data; {@code null} if unset.
    */
   private String vaccine;
-
-  /** Optional free-text note, encrypted at rest. */
-  @Convert(converter = StringCryptoConverter.class)
-  private String note;
 }
