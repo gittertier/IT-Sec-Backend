@@ -38,4 +38,16 @@ public class PublicExceptions {
       super("Appointment does not belong to the current user");
     }
   }
+
+  public static class PraxisNotFoundException extends AbstractPublicException {
+    public PraxisNotFoundException() {
+      super("Praxis not found");
+    }
+  }
+
+  public static class InvalidSlotTimeException extends AbstractPublicException {
+    public InvalidSlotTimeException() {
+      super("Invalid slot time: startTime must be in the future and before endTime");
+    }
+  }
 }

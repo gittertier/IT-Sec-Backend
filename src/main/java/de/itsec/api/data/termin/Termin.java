@@ -51,6 +51,12 @@ public class Termin {
   @Column(name = "pseudo_user_id")
   private UUID pseudoUserId;
 
+  /**
+   * Which vaccine is administered at this slot, shown to the user so they can pick the right
+   * appointment (e.g. for a follow-up dose). Free text, not personal data; {@code null} if unset.
+   */
+  private String vaccine;
+
   /** Optional free-text note, encrypted at rest. */
   @Convert(converter = StringCryptoConverter.class)
   private String note;

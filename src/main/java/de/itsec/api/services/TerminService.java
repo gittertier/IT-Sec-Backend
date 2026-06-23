@@ -1,8 +1,10 @@
 package de.itsec.api.services;
 
+import de.itsec.api.data.termin.Praxis;
 import de.itsec.api.data.termin.Termin;
 import de.itsec.api.data.termin.TerminStatus;
 import de.itsec.api.exceptions.PublicExceptions;
+import de.itsec.api.repositories.termin.PraxisRepository;
 import de.itsec.api.repositories.termin.TerminRepository;
 import jakarta.transaction.Transactional;
 import java.time.LocalDateTime;
@@ -25,13 +27,67 @@ public class TerminService {
   static final int MAX_ACTIVE_BOOKINGS_PER_USER = 3;
 
   private final TerminRepository terminRepository;
+  private final PraxisRepository praxisRepository;
   private final PseudoMappingService pseudoMappingService;
 
   @Autowired
   public TerminService(
-      TerminRepository terminRepository, PseudoMappingService pseudoMappingService) {
+      TerminRepository terminRepository,
+      PraxisRepository praxisRepository,
+      PseudoMappingService pseudoMappingService) {
     this.terminRepository = terminRepository;
+    this.praxisRepository = praxisRepository;
     this.pseudoMappingService = pseudoMappingService;
+  }
+
+  /**
+   * Creates a new free slot at a praxis. Admin/staff operation; the slot starts as {@link
+   * TerminStatus#FREE} with no booker.
+   *
+   * @param praxisId the praxis the slot belongs to
+   * @param startTime slot start; must be in the future and before {@code endTime}
+   * @param endTime slot end
+   * @return the created slot
+   */
+  @Transactional
+  public Termin createSlot(
+      UUID praxisId, LocalDateTime startTime, LocalDateTime endTime, String vaccine) {
+    Praxis praxis =
+        praxisRepository
+            .findById(praxisId)
+            .orElseThrow(PublicExceptions.PraxisNotFoundException::new);
+
+    LocalDateTime now = LocalDateTime.now();
+    if (startTime == null
+        || endTime == null
+        || !startTime.isAfter(now)
+        || !startTime.isBefore(endTime)) {
+      throw new PublicExceptions.InvalidSlotTimeException();
+    }
+
+    Termin slot = new Termin();
+    slot.setPraxis(praxis);
+    slot.setStartTime(startTime);
+    slot.setEndTime(endTime);
+    slot.setStatus(TerminStatus.FREE);
+    if (vaccine != null && !vaccine.isBlank()) {
+      slot.setVaccine(vaccine);
+    }
+    return terminRepository.save(slot);
+  }
+
+  /**
+   * Filters slots by praxis, postal code, status and start-time range. Every argument is optional;
+   * {@code null} disables that criterion.
+   */
+  public List<Termin> filter(
+      UUID praxisId,
+      String postalCode,
+      TerminStatus status,
+      LocalDateTime from,
+      LocalDateTime to) {
+    String pc = (postalCode != null && !postalCode.isBlank()) ? postalCode : null;
+    return terminRepository.filter(praxisId, pc, status, from, to);
   }
 
   /**
@@ -39,21 +95,32 @@ public class TerminService {
    * lookup is needed.
    *
    * @param praxisId optional filter; when {@code null}, slots of all praxen are returned
+   * @param plz optional postal-code filter on the slot's praxis; blank/{@code null} disables it
+   * @param from earliest start time to return; lets callers look further into the future. {@code
+   *     null} or a past value defaults to "now" so past slots are never returned
    */
-  public List<Termin> getFreeSlots(UUID praxisId) {
+  public List<Termin> getFreeSlots(UUID praxisId, String plz, LocalDateTime from) {
+    String postalCode = (plz != null && !plz.isBlank()) ? plz : null;
     LocalDateTime now = LocalDateTime.now();
-    if (praxisId == null) {
-      return terminRepository.findByStatusAndStartTimeAfterOrderByStartTimeAsc(
-          TerminStatus.FREE, now);
-    }
-    return terminRepository.findByPraxisIdAndStatusAndStartTimeAfterOrderByStartTimeAsc(
-        praxisId, TerminStatus.FREE, now);
+    LocalDateTime effectiveFrom = (from != null && from.isAfter(now)) ? from : now;
+    return terminRepository.filter(
+        praxisId, postalCode, TerminStatus.FREE, effectiveFrom, null);
   }
 
-  /** All slots (any status) currently associated with the given user, via their pseudonym. */
-  public List<Termin> getAppointmentsForUser(UUID userId) {
+  /**
+   * The user's own slots (any status when no filter is given) with optional praxis, status and
+   * start-time range filters (e.g. "my booked
+   * appointments at praxis X on day Y"). Always scoped to the caller's pseudonym, so no other user's
+   * appointments can be reached.
+   */
+  public List<Termin> getAppointmentsForUser(
+      UUID userId,
+      UUID praxisId,
+      TerminStatus status,
+      LocalDateTime from,
+      LocalDateTime to) {
     UUID pseudoId = pseudoMappingService.getOrCreatePseudoIdFor(userId);
-    return terminRepository.findByPseudoUserIdOrderByStartTimeAsc(pseudoId);
+    return terminRepository.filterForPseudoUser(pseudoId, praxisId, status, from, to);
   }
 
   /**

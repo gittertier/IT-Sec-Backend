@@ -87,6 +87,7 @@ public class SetupDataLoader
     Praxis praxis = new Praxis();
     praxis.setName("Demo Praxis");
     praxis.setAddress("Musterstrasse 1, 12345 Musterstadt");
+    praxis.setPostalCode("12345");
     praxis = praxisRepository.save(praxis);
 
     // Seed a handful of free 30-minute slots for the next business day.
