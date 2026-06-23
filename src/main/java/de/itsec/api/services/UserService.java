@@ -117,7 +117,6 @@ public class UserService {
     User user = new User();
     user.setPassword(passwordEncoder.encode(password));
     user.setUsername(username);
-    user.setEnabled(true);
     user.setRoles(List.of(userRole));
     return userRepository.save(user);
   }

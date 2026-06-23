@@ -109,10 +109,9 @@ public class SetupDataLoader
     Role adminRole = roleRepository.findByName("ROLE_ADMIN");
     User user = new User();
     user.setPassword(passwordEncoder.encode("admin"));
-    user.setUsername("admin");
-    user.setEmail("admin@admin.com");
+    user.setUsername("admin@admin.com");
     user.setRoles(Arrays.asList(adminRole));
-    user.setEnabled(true);
+    user.setEmailVerified(true);
     userRepository.save(user);
   }
 
@@ -123,10 +122,9 @@ public class SetupDataLoader
     Role adminRole = roleRepository.findByName("ROLE_USER");
     User user = new User();
     user.setPassword(passwordEncoder.encode("test"));
-    user.setUsername("user");
-    user.setEmail("user@user.com");
+    user.setUsername("user@user.com");
     user.setRoles(Arrays.asList(adminRole));
-    user.setEnabled(true);
+    user.setEmailVerified(true);
     userRepository.save(user);
   }
 

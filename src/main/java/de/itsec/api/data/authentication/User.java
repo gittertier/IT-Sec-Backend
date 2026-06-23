@@ -28,14 +28,18 @@ public class User {
   private UUID id;
 
   @Column(unique = true)
+  @Convert(converter = StringCryptoConverter.class)
   private String username;
 
-  @Convert(converter = StringCryptoConverter.class)
-  private String email;
-
   private String password;
-  private boolean enabled;
-  private boolean tokenExpired;
+
+  @Convert(converter = StringCryptoConverter.class)
+  private String firstName;
+
+  @Convert(converter = StringCryptoConverter.class)
+  private String lastName;
+
+  private boolean emailVerified;
 
   @ManyToMany
   @JoinTable(
