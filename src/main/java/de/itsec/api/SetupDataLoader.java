@@ -1,15 +1,6 @@
 package de.itsec.api;
 
-import jakarta.transaction.Transactional;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
-
+import de.itsec.api.data.Address;
 import de.itsec.api.data.authentication.Privilege;
 import de.itsec.api.data.authentication.Role;
 import de.itsec.api.data.authentication.User;
@@ -22,13 +13,21 @@ import de.itsec.api.repositories.authentication.UserRepository;
 import de.itsec.api.repositories.termin.PraxisRepository;
 import de.itsec.api.repositories.termin.TerminRepository;
 import de.itsec.api.utils.AnnotationScanner;
+import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Component;
 
 @Component
-public class SetupDataLoader
-    implements ApplicationListener<ContextRefreshedEvent> {
+public class SetupDataLoader implements ApplicationListener<ContextRefreshedEvent> {
 
   private UserRepository userRepository;
 
@@ -58,16 +57,14 @@ public class SetupDataLoader
           .filter(privilegeName -> !privilegeName.startsWith("ROLE_"))
           .forEach(this::createPrivilegeIfNotFound);
     } catch (Exception e) {
-      System.err.println("failed to load annotations/privileges" +
-                         e.getMessage());
+      System.err.println("failed to load annotations/privileges" + e.getMessage());
       e.printStackTrace();
     }
 
     Privilege readPrivilege = createPrivilegeIfNotFound("READ_PRIVILEGE");
     Privilege writePrivilege = createPrivilegeIfNotFound("WRITE_PRIVILEGE");
 
-    List<Privilege> adminPrivileges =
-        Arrays.asList(readPrivilege, writePrivilege);
+    List<Privilege> adminPrivileges = Arrays.asList(readPrivilege, writePrivilege);
     createRoleIfNotFound("ROLE_ADMIN", adminPrivileges);
     createRoleIfNotFound("ROLE_STAFF", Arrays.asList(readPrivilege));
     createRoleIfNotFound("ROLE_TEST", Arrays.asList());
@@ -110,6 +107,15 @@ public class SetupDataLoader
     User user = new User();
     user.setPassword(passwordEncoder.encode("admin"));
     user.setUsername("admin@admin.com");
+    user.setFirstName("admin");
+    user.setLastName("admin");
+    user.setAddress(
+        Address.builder()
+            .city("admin city")
+            .houseNumber("12")
+            .street("admin street")
+            .areaCode("99999")
+            .build());
     user.setRoles(Arrays.asList(adminRole));
     user.setEmailVerified(true);
     userRepository.save(user);
@@ -123,6 +129,13 @@ public class SetupDataLoader
     User user = new User();
     user.setPassword(passwordEncoder.encode("test"));
     user.setUsername("user@user.com");
+    user.setAddress(
+        Address.builder()
+            .city("user city")
+            .houseNumber("12")
+            .street("user street")
+            .areaCode("99999")
+            .build());
     user.setRoles(Arrays.asList(adminRole));
     user.setEmailVerified(true);
     userRepository.save(user);
@@ -152,12 +165,13 @@ public class SetupDataLoader
   }
 
   @Autowired
-  public SetupDataLoader(UserRepository userRepository,
-                         RoleRepository roleRepository,
-                         PrivilegeRepository privilegeRepository,
-                         PraxisRepository praxisRepository,
-                         TerminRepository terminRepository,
-                         PasswordEncoder passwordEncoder) {
+  public SetupDataLoader(
+      UserRepository userRepository,
+      RoleRepository roleRepository,
+      PrivilegeRepository privilegeRepository,
+      PraxisRepository praxisRepository,
+      TerminRepository terminRepository,
+      PasswordEncoder passwordEncoder) {
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.privilegeRepository = privilegeRepository;

@@ -1,10 +1,17 @@
 package de.itsec.api.services;
 
 import de.itsec.api.PermissionRoles;
+import de.itsec.api.controllers.v1.UserController;
+import de.itsec.api.data.Address;
 import de.itsec.api.data.authentication.Role;
 import de.itsec.api.data.authentication.User;
+import de.itsec.api.data.dto.request.UserPostRequestDto;
 import de.itsec.api.exceptions.PublicExceptions;
 import de.itsec.api.repositories.authentication.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +30,9 @@ public class UserService {
           + "(?=.*[^A-Za-z\\d])" // at least one special character (any non-alphanumeric)
           + ".{8,}$"; // at least 8 characters
 
+  private static final String CHARS =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
   private static final Pattern PASSWORD_PATTERN = Pattern.compile(PASSWORD_REGEX);
 
   UserRepository userRepository;
@@ -30,6 +40,8 @@ public class UserService {
   RoleService roleService;
 
   PasswordEncoder passwordEncoder;
+
+  EmailService emailService;
 
   /**
    * Updates the password for a given user if the current password is correct.
@@ -68,6 +80,48 @@ public class UserService {
     return userRepository.findById(id).orElseThrow(() -> new RuntimeException("id not found"));
   }
 
+  public User patchUser(String username, UserController.UserPatchDto patch) {
+    User user =
+        userRepository
+            .findByUsername(username)
+            .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
+    if (patch.username() != null) {
+      user.setUsername(patch.username());
+    }
+    if (patch.firstName() != null) {
+      user.setFirstName(patch.firstName());
+    }
+    if (patch.lastName() != null) {
+      user.setLastName(patch.lastName());
+    }
+
+    if (patch.address() != null) {
+      Address addr = user.getAddress();
+      UserController.AddressPatchDto a = patch.address();
+      if (addr == null) {
+        addr = new Address();
+      }
+      if (a.street() != null) {
+        addr.setStreet(a.street());
+      }
+      if (a.city() != null) {
+        addr.setCity(a.city());
+      }
+      if (a.postalCode() != null) {
+        addr.setAreaCode(a.postalCode());
+      }
+      if (a.houseNumber() != null) {
+        addr.setHouseNumber(a.houseNumber());
+      }
+
+      user.setAddress(addr);
+    }
+
+    userRepository.save(user);
+    return user;
+  }
+
   /**
    * Looks up a user by username.
    *
@@ -104,21 +158,57 @@ public class UserService {
     return userRepository.findAll();
   }
 
-  public User createUser(String username, String password) {
+  public User createUser(UserPostRequestDto userDto) {
 
-    if (this.userRepository.findByUsername(username).isPresent()) {
+    if (this.userRepository.findByUsername(userDto.username()).isPresent()) {
       throw new PublicExceptions.UsernameAlreadyExistsException();
     }
 
-    isPasswordStrong(password);
+    isPasswordStrong(userDto.password());
 
     Role userRole = this.roleService.getRole(PermissionRoles.USER);
 
     User user = new User();
-    user.setPassword(passwordEncoder.encode(password));
-    user.setUsername(username);
+    user.setPassword(passwordEncoder.encode(userDto.password()));
+    user.setUsername(userDto.username());
+    user.setFirstName(userDto.firstName());
+    user.setLastName(userDto.lastName());
+
+    Address address = new Address();
+    address.setCity(userDto.address().city());
+    address.setAreaCode(userDto.address().postalCode());
+    address.setHouseNumber(userDto.address().houseNumber());
+    address.setStreet(userDto.address().street());
+    user.setAddress(address);
+
     user.setRoles(List.of(userRole));
-    return userRepository.save(user);
+    User returnUser = userRepository.save(user);
+    sendVerificationToken(returnUser);
+    return returnUser;
+  }
+
+  public void sendVerificationToken(User user) {
+    String token = randomString(48);
+
+    user.setVerificationToken(token);
+    user.setVerificationSentAt(LocalDateTime.now());
+
+    this.userRepository.saveAndFlush(user);
+
+    this.emailService.sendVerificationEmail(user);
+  }
+
+  public void verifyVerificationToken(User user, String token) {
+    Duration duration = Duration.between(user.getVerificationSentAt(), LocalDateTime.now());
+    if (duration.minus(Duration.ofHours(3)).isNegative()) {
+      if (token.equals(user.getVerificationToken())) {
+        user.setEmailVerified(true);
+        this.userRepository.save(user);
+        return;
+      }
+      throw new PublicExceptions.InvalidVerificationTokenException();
+    }
+    throw new PublicExceptions.VerificationTokenExpiredException();
   }
 
   private boolean isPasswordStrong(String password) {
@@ -133,11 +223,24 @@ public class UserService {
     return true;
   }
 
+  public static String randomString(int length) {
+    SecureRandom random = new SecureRandom();
+    StringBuilder sb = new StringBuilder(length);
+    for (int i = 0; i < length; i++) {
+      sb.append(CHARS.charAt(random.nextInt(CHARS.length())));
+    }
+    return sb.toString();
+  }
+
   @Autowired
   public UserService(
-      UserRepository userRepository, RoleService roleService, PasswordEncoder passwordEncoder) {
+      UserRepository userRepository,
+      RoleService roleService,
+      PasswordEncoder passwordEncoder,
+      EmailService emailService) {
     this.passwordEncoder = passwordEncoder;
     this.userRepository = userRepository;
     this.roleService = roleService;
+    this.emailService = emailService;
   }
 }

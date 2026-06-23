@@ -22,7 +22,7 @@ public class RegistrationController {
   @PostMapping()
   public ResponseEntity<UserDto> register(@Valid @RequestBody UserPostRequestDto userDto) {
 
-    User user = this.userService.createUser(userDto.username(), userDto.password());
+    User user = this.userService.createUser(userDto);
 
     return new ResponseEntity<>(UserDto.from(user), HttpStatus.CREATED);
   }

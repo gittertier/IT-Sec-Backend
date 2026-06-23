@@ -67,6 +67,7 @@ public class SecurityConfig {
               csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                   .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                   .ignoringRequestMatchers("/login")
+                  .ignoringRequestMatchers("/api/v1/public/csrf")
                   .ignoringRequestMatchers("/api/v1/public/login");
               if (apiDocsEnabled) {
                 csrf.ignoringRequestMatchers(API_DOCS_WHITELIST);

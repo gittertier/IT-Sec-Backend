@@ -14,6 +14,8 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.UUID;
 import lombok.Data;
@@ -28,7 +30,7 @@ public class User {
   private UUID id;
 
   @Column(unique = true)
-  @Convert(converter = StringCryptoConverter.class)
+  // @Convert(converter = StringCryptoConverter.class)
   private String username;
 
   private String password;
@@ -41,6 +43,10 @@ public class User {
 
   private boolean emailVerified;
 
+  private String verificationToken;
+
+  private LocalDateTime verificationSentAt;
+
   @ManyToMany
   @JoinTable(
       name = "users_roles",
@@ -50,6 +56,11 @@ public class User {
 
   @ManyToOne(cascade = CascadeType.ALL)
   private Address address;
+
+
+  public String getFullName() {
+    return this.getFirstName() + " " + this.getLastName();
+  }
 
   @Override
   public String toString() {

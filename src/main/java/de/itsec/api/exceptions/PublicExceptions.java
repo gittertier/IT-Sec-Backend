@@ -38,4 +38,16 @@ public class PublicExceptions {
       super("Appointment does not belong to the current user");
     }
   }
+
+  public static class InvalidVerificationTokenException extends AbstractPublicException {
+    public InvalidVerificationTokenException() {
+      super("Verification Token is invalid");
+    }
+  }
+
+  public static class VerificationTokenExpiredException extends AbstractPublicException {
+    public VerificationTokenExpiredException() {
+      super("Verfication Token expired");
+    }
+  }
 }

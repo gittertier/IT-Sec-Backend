@@ -50,3 +50,4 @@ pseudo:
 
 mail:
   from: ${EMAIL_FROM}
+  verification-base-url: ${EMAIL_VERIFICATION_BASE_URL}

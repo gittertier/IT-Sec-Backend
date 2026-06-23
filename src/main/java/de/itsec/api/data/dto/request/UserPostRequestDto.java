@@ -7,4 +7,10 @@ public record UserPostRequestDto(
     @NotNull(message = "username cannot be null") @NotEmpty(message = "username cannot be empty")
         String username,
     @NotNull(message = "password cannot be null") @NotEmpty(message = "password cannot be empty")
-        String password) {}
+        String password,
+    String firstName,
+    String lastName,
+    AddressPostRequest address) {
+  public record AddressPostRequest(
+      String street, String houseNumber, String city, String postalCode) {}
+}
