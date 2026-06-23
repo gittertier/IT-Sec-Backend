@@ -1,4 +1,4 @@
-package de.itsec.api;
+package de.itsec.api.authfilter;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

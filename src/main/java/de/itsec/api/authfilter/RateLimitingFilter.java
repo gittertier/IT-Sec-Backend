@@ -1,4 +1,4 @@
-package de.itsec.api;
+package de.itsec.api.authfilter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

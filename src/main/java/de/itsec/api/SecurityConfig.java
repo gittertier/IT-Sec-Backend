@@ -1,5 +1,8 @@
 package de.itsec.api;
 
+import de.itsec.api.authfilter.CsrfCookieFilter;
+import de.itsec.api.authfilter.JsonUsernamePasswordAuthenticationFilter;
+import de.itsec.api.authfilter.RateLimitingFilter;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

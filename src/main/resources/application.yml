@@ -13,6 +13,20 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    host: ${EMAIL_HOST}
+    port: ${EMAIL_PORT}
+    username: ${EMAIL_USERNAME}
+    password: ${EMAIL_PASSWORD}
+    properties:
+      mail:
+        transport:
+          protocol: smtp
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+        debug: true
 server:
   error:
     include-message: ALWAYS
@@ -33,3 +47,6 @@ pseudo:
   mapping:
     file: data/mappings.enc
   key: j0rqaGbymsASTTKdeBUwNnArEG1JH40O
+
+mail:
+  from: ${EMAIL_FROM}
