@@ -39,6 +39,18 @@ public class PublicExceptions {
     }
   }
 
+  public static class PraxisNotFoundException extends AbstractPublicException {
+    public PraxisNotFoundException() {
+      super("Praxis not found");
+    }
+  }
+
+  public static class InvalidSlotTimeException extends AbstractPublicException {
+    public InvalidSlotTimeException() {
+      super("Invalid slot time: startTime must be in the future and before endTime");
+    }
+  }
+
   public static class InvalidVerificationTokenException extends AbstractPublicException {
     public InvalidVerificationTokenException() {
       super("Verification Token is invalid");
