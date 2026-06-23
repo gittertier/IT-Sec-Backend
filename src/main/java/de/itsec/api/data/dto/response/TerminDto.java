@@ -16,8 +16,7 @@ public record TerminDto(
     LocalDateTime startTime,
     LocalDateTime endTime,
     TerminStatus status,
-    String vaccine,
-    String note) {
+    String vaccine) {
 
   public static TerminDto from(Termin termin) {
     return new TerminDto(
@@ -27,23 +26,6 @@ public record TerminDto(
         termin.getStartTime(),
         termin.getEndTime(),
         termin.getStatus(),
-        termin.getVaccine(),
-        termin.getNote());
-  }
-
-  /**
-   * Public view for browsing/filtering slots: identical to {@link #from(Termin)} but never exposes
-   * the personal {@code note}, which belongs to whoever booked the slot.
-   */
-  public static TerminDto publicView(Termin termin) {
-    return new TerminDto(
-        termin.getId(),
-        termin.getPraxis().getId(),
-        termin.getPraxis().getName(),
-        termin.getStartTime(),
-        termin.getEndTime(),
-        termin.getStatus(),
-        termin.getVaccine(),
-        null);
+        termin.getVaccine());
   }
 }

@@ -2,10 +2,12 @@ package de.itsec.api.controllers.v1;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
@@ -18,7 +20,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import de.itsec.api.data.authentication.User;
-import de.itsec.api.data.dto.request.TerminBookingRequestDto;
 import de.itsec.api.data.dto.request.TerminCreateRequestDto;
 import de.itsec.api.data.dto.response.TerminDto;
 import de.itsec.api.data.termin.Termin;
@@ -49,47 +50,48 @@ public class TerminController {
    * its praxis, so the client can pick one without a separate praxis lookup.
    */
   @GetMapping("/free")
-  public List<TerminDto> getFreeSlots(
+  public Page<TerminDto> getFreeSlots(
       @RequestParam(required = false) String plz,
       @RequestParam(required = false) UUID praxisId,
-      @RequestParam(required = false) LocalDateTime from) {
-    return terminService.getFreeSlots(praxisId, plz, from).stream().map(TerminDto::from).toList();
+      @RequestParam(required = false) LocalDateTime from,
+      @PageableDefault(sort = "startTime") Pageable pageable) {
+    return terminService.getFreeSlots(praxisId, plz, from, pageable).map(TerminDto::from);
   }
 
   /**
    * Filtered slot list. All query params are optional: {@code praxisId}, {@code postalCode}, {@code
    * status} ({@code FREE}/{@code BOOKED}/{@code CANCELLED}) and a {@code from}/{@code to} start-time
-   * range. Returns the public view, which never exposes other users' notes.
+   * range.
    */
   @GetMapping("/search")
-  public List<TerminDto> search(
+  public Page<TerminDto> search(
       @RequestParam(required = false) UUID praxisId,
       @RequestParam(required = false) String postalCode,
       @RequestParam(required = false) TerminStatus status,
       @RequestParam(required = false) LocalDateTime from,
-      @RequestParam(required = false) LocalDateTime to) {
-    return terminService.filter(praxisId, postalCode, status, from, to).stream()
-        .map(TerminDto::publicView)
-        .toList();
+      @RequestParam(required = false) LocalDateTime to,
+      @PageableDefault(sort = "startTime") Pageable pageable) {
+    return terminService.filter(praxisId, postalCode, status, from, to, pageable).map(TerminDto::from);
   }
 
   /**
    * Lists the current user's own appointments. All query params are optional and let the user narrow
    * down to e.g. their booked appointments at a praxis on a given day: {@code praxisId}, {@code
    * status} ({@code FREE}/{@code BOOKED}/{@code CANCELLED}) and a {@code from}/{@code to} start-time
-   * range. Notes are included because these are the caller's own appointments.
+   * range.
    */
   @GetMapping("/mine")
-  public List<TerminDto> getMyAppointments(
+  public Page<TerminDto> getMyAppointments(
       @RequestParam(required = false) UUID praxisId,
       @RequestParam(required = false) TerminStatus status,
       @RequestParam(required = false) LocalDateTime from,
       @RequestParam(required = false) LocalDateTime to,
+      @PageableDefault(sort = "startTime") Pageable pageable,
       Principal principal) {
     UUID userId = currentUserId(principal);
-    return terminService.getAppointmentsForUser(userId, praxisId, status, from, to).stream()
-        .map(TerminDto::from)
-        .toList();
+    return terminService
+        .getAppointmentsForUser(userId, praxisId, status, from, to, pageable)
+        .map(TerminDto::from);
   }
 
   /** Creates a new free slot at a praxis. Restricted to admin/staff. */
@@ -104,13 +106,9 @@ public class TerminController {
 
   /** Books a free slot for the current user. */
   @PostMapping("/{slotId}/book")
-  public ResponseEntity<TerminDto> book(
-      @PathVariable UUID slotId,
-      @RequestBody(required = false) TerminBookingRequestDto request,
-      Principal principal) {
+  public ResponseEntity<TerminDto> book(@PathVariable UUID slotId, Principal principal) {
     UUID userId = currentUserId(principal);
-    String note = request != null ? request.note() : null;
-    Termin booked = terminService.book(slotId, userId, note);
+    Termin booked = terminService.book(slotId, userId);
     return ResponseEntity.ok(TerminDto.from(booked));
   }
 
