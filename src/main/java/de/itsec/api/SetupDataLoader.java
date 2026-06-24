@@ -89,8 +89,13 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     }
     Praxis praxis = new Praxis();
     praxis.setName("Demo Praxis");
-    praxis.setAddress("Musterstrasse 1, 12345 Musterstadt");
-    praxis.setPostalCode("12345");
+    praxis.setAddress(
+        Address.builder()
+            .street("Musterstrasse")
+            .houseNumber("1")
+            .city("Musterstadt")
+            .areaCode("12345")
+            .build());
     praxis = praxisRepository.save(praxis);
 
     // Seed a handful of free 30-minute slots for the next business day.

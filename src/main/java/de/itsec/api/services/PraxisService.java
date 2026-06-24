@@ -1,5 +1,7 @@
 package de.itsec.api.services;
 
+import de.itsec.api.data.Address;
+import de.itsec.api.data.dto.response.AddressDto;
 import de.itsec.api.data.termin.Praxis;
 import de.itsec.api.repositories.termin.PraxisRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,33 +20,42 @@ public class PraxisService {
     this.praxisRepository = praxisRepository;
   }
 
-  /** Creates and persists a new praxis. */
-  public Praxis create(String name, String address, String postalCode) {
+  /** Creates and persists a new praxis from a structured address. */
+  public Praxis create(String name, AddressDto address) {
     Praxis praxis = new Praxis();
     praxis.setName(name);
-    praxis.setAddress(address);
-    praxis.setPostalCode(postalCode);
+    praxis.setAddress(toAddress(address));
     return praxisRepository.save(praxis);
   }
 
   /**
    * Lists praxen, optionally filtered by postal code and/or a name fragment. A {@code null} or blank
-   * filter value is ignored.
+   * filter value is ignored. The PLZ now lives in the address, so we filter on the address areaCode.
    */
   public Page<Praxis> find(String postalCode, String name, Pageable pageable) {
     boolean hasPostalCode = postalCode != null && !postalCode.isBlank();
     boolean hasName = name != null && !name.isBlank();
 
     if (hasPostalCode && hasName) {
-      return praxisRepository.findByPostalCodeAndNameContainingIgnoreCase(
+      return praxisRepository.findByAddress_AreaCodeAndNameContainingIgnoreCase(
           postalCode, name, pageable);
     }
     if (hasPostalCode) {
-      return praxisRepository.findByPostalCode(postalCode, pageable);
+      return praxisRepository.findByAddress_AreaCode(postalCode, pageable);
     }
     if (hasName) {
       return praxisRepository.findByNameContainingIgnoreCase(name, pageable);
     }
     return praxisRepository.findAll(pageable);
+  }
+
+  // Maps the request AddressDto onto the Address entity (DTO postalCode -> entity areaCode).
+  private Address toAddress(AddressDto dto) {
+    return Address.builder()
+        .street(dto.street())
+        .houseNumber(dto.houseNumber())
+        .areaCode(dto.postalCode())
+        .city(dto.city())
+        .build();
   }
 }

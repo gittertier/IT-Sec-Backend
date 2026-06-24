@@ -17,13 +17,13 @@ public interface TerminRepository extends JpaRepository<Termin, UUID> {
 
   /**
    * Flexible, paged slot filter. Every parameter is optional; passing {@code null} disables that
-   * criterion. Filters by praxis, the praxis' postal code, status and a start-time range. Ordering is
-   * controlled by the {@link Pageable}.
+   * criterion. Filters by praxis, the praxis' postal code (now part of the praxis address), status
+   * and a start-time range. Ordering is controlled by the {@link Pageable}.
    */
   @Query(
       "SELECT t FROM Termin t WHERE "
           + "(:praxisId IS NULL OR t.praxis.id = :praxisId) AND "
-          + "(:postalCode IS NULL OR t.praxis.postalCode = :postalCode) AND "
+          + "(:postalCode IS NULL OR t.praxis.address.areaCode = :postalCode) AND "
           + "(:status IS NULL OR t.status = :status) AND "
           + "(:from IS NULL OR t.startTime >= :from) AND "
           + "(:to IS NULL OR t.startTime <= :to)")

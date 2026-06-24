@@ -1,10 +1,12 @@
 package de.itsec.api.data.termin;
 
-import jakarta.persistence.Column;
+import de.itsec.api.data.Address;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.util.UUID;
 import lombok.Data;
@@ -26,9 +28,12 @@ public class Praxis {
 
   private String name;
 
-  private String address;
-
-  /** German postal code (PLZ), kept as a separate column so praxen can be filtered by it. */
-  @Column(name = "postal_code")
-  private String postalCode;
+  /**
+   * Structured address, reusing the same Address entity that User uses. The postal code (PLZ) lives
+   * in Address.areaCode, which is the single value we filter praxen and slots by, so there is no
+   * separate postalCode column anymore. Required (optional = false): a praxis always has an address.
+   * This also keeps the PLZ filter queries safe, because they reach the PLZ through this address.
+   */
+  @ManyToOne(optional = false, cascade = CascadeType.ALL)
+  private Address address;
 }

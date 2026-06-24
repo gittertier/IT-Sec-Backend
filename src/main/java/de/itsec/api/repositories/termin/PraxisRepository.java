@@ -13,13 +13,13 @@ public interface PraxisRepository extends JpaRepository<Praxis, UUID> {
 
   Optional<Praxis> findByName(String name);
 
-  /** Praxen with the given postal code (PLZ), paged. */
-  Page<Praxis> findByPostalCode(String postalCode, Pageable pageable);
+  /** Praxen with the given postal code (PLZ), paged. The PLZ lives in the address (areaCode). */
+  Page<Praxis> findByAddress_AreaCode(String areaCode, Pageable pageable);
 
   /** Praxen whose name contains the given text, case-insensitive, paged. */
   Page<Praxis> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
   /** Praxen matching both postal code and a case-insensitive name fragment, paged. */
-  Page<Praxis> findByPostalCodeAndNameContainingIgnoreCase(
-      String postalCode, String name, Pageable pageable);
+  Page<Praxis> findByAddress_AreaCodeAndNameContainingIgnoreCase(
+      String areaCode, String name, Pageable pageable);
 }
