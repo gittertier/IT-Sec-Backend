@@ -8,6 +8,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -26,8 +27,13 @@ public class RateLimitingFilter extends OncePerRequestFilter {
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !("POST".equalsIgnoreCase(request.getMethod())
-        && "/api/v1/public/login".equals(request.getServletPath()));
+    boolean isLoginPost =
+        "POST".equalsIgnoreCase(request.getMethod())
+            && "/api/v1/public/login".equals(request.getServletPath());
+    boolean isTotpPost =
+        "POST".equalsIgnoreCase(request.getMethod())
+            && "/api/v1/public/login/totp".equals(request.getServletPath());
+    return !(isLoginPost || isTotpPost);
   }
 
   @Override
@@ -40,11 +46,16 @@ public class RateLimitingFilter extends OncePerRequestFilter {
             ? wrapped
             : new ContentCachingRequestWrapper(request, 0);
 
-    String clientIp = getClientIp(wrappedRequest);
-    String username = extractUsername(wrappedRequest);
+    String key;
+    if ("/api/v1/public/login/totp".equals(wrappedRequest.getServletPath())) {
+      HttpSession session = wrappedRequest.getSession(false);
+      key =
+          session != null ? "totp:" + session.getId() : "totp:anon:" + getClientIp(wrappedRequest);
+    } else {
+      key = getClientIp(wrappedRequest) + ":" + extractUsername(wrappedRequest);
+    }
 
-    AtomicInteger counter =
-        requestCounts.get(clientIp + ":" + username, key -> new AtomicInteger(0));
+    AtomicInteger counter = requestCounts.get(key, k -> new AtomicInteger(0));
     int currentCount = counter.incrementAndGet();
 
     if (currentCount > MAX_REQUESTS_PER_MINUTE) {

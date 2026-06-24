@@ -211,6 +211,20 @@ public class UserService {
     throw new PublicExceptions.VerificationTokenExpiredException();
   }
 
+  public void savePendingTotpSecret(String username, String secret) {
+    User user = getUserByUsername(username);
+    user.setPendingTotpSecret(secret);
+    userRepository.save(user);
+  }
+
+  public void activateTotp(String username, String confirmedSecret) {
+    User user = getUserByUsername(username);
+    user.setTotpSecret(confirmedSecret);
+    user.setPendingTotpSecret(null);
+    user.setTotpEnabled(true);
+    userRepository.save(user);
+  }
+
   private boolean isPasswordStrong(String password) {
     if (password == null || password.isBlank()) {
       throw new IllegalArgumentException("Password cannot be empty");

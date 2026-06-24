@@ -3,17 +3,25 @@ package de.itsec.api;
 import de.itsec.api.authfilter.CsrfCookieFilter;
 import de.itsec.api.authfilter.JsonUsernamePasswordAuthenticationFilter;
 import de.itsec.api.authfilter.RateLimitingFilter;
+import de.itsec.api.authfilter.TotpPendingAuthenticationFilter;
+import de.itsec.api.data.dto.TotpPendingAuthentication;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
+import org.springframework.security.authorization.AuthorityAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationManagers;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -36,6 +44,7 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http,
       AuthenticationConfiguration authConfig,
+      TotpPendingAuthenticationFilter totpFiler,
       @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled) {
 
     AuthenticationManager authenticationManager = authConfig.getAuthenticationManager();
@@ -49,11 +58,18 @@ public class SecurityConfig {
     jsonFilter.setPasswordParameter("password");
     jsonFilter.setAuthenticationSuccessHandler(
         (req, res, auth) -> {
-          req.getSession(true);
+          HttpSession session = req.getSession(true);
 
-          res.setStatus(HttpServletResponse.SC_OK);
+          session.setAttribute(
+              "TOTP_PENDING", new TotpPendingAuthentication(auth.getName(), auth.getAuthorities()));
+
+          SecurityContext emptyContext = SecurityContextHolder.createEmptyContext();
+          SecurityContextHolder.setContext(emptyContext);
+          new HttpSessionSecurityContextRepository().saveContext(emptyContext, req, res);
+
+          res.setStatus(HttpServletResponse.SC_ACCEPTED);
           res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-          res.getWriter().write("{\"message\":\"login successful\"}");
+          res.getWriter().write("{\"message\":\"totp required\"}");
         });
     jsonFilter.setAuthenticationFailureHandler(
         (req, res, ex) -> {
@@ -68,7 +84,8 @@ public class SecurityConfig {
                   .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
                   .ignoringRequestMatchers("/login")
                   .ignoringRequestMatchers("/api/v1/public/csrf")
-                  .ignoringRequestMatchers("/api/v1/public/login");
+                  .ignoringRequestMatchers("/api/v1/public/login")
+                  .ignoringRequestMatchers("/api/v1/public/login/totp");
               if (apiDocsEnabled) {
                 csrf.ignoringRequestMatchers(API_DOCS_WHITELIST);
               }
@@ -78,13 +95,21 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth -> {
               auth.requestMatchers("/api/v1/public/**", "/error").permitAll();
+              auth.requestMatchers("/api/v1/totp/setup", "/api/v1/totp/confirm")
+                  .hasAnyRole("USER", "TOTP_PENDING");
               if (apiDocsEnabled) {
                 auth.requestMatchers(API_DOCS_WHITELIST).permitAll();
               }
-              auth.anyRequest().authenticated();
+              auth.anyRequest()
+                  .access(
+                      AuthorizationManagers.allOf(
+                          AuthenticatedAuthorizationManager.authenticated(),
+                          AuthorizationManagers.not(
+                              AuthorityAuthorizationManager.hasRole("TOTP_PENDING"))));
             })
         // login filter before credentials checking for brute force
         .addFilterBefore(new RateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
+        .addFilterBefore(totpFiler, UsernamePasswordAuthenticationFilter.class)
         .addFilterAt(jsonFilter, UsernamePasswordAuthenticationFilter.class)
         .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
 
