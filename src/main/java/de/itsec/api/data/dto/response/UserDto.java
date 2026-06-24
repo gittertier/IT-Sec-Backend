@@ -4,7 +4,13 @@ import de.itsec.api.data.authentication.User;
 import java.util.List;
 import java.util.UUID;
 
-public record UserDto(UUID id, String username, AddressDto address, List<RoleDto> roles) {
+public record UserDto(
+    UUID id,
+    String username,
+    boolean emailVerified,
+    boolean totpEnabled,
+    AddressDto address,
+    List<RoleDto> roles) {
 
   /**
    * Creates a UserDto from a User entity.
@@ -17,6 +23,8 @@ public record UserDto(UUID id, String username, AddressDto address, List<RoleDto
     return new UserDto(
         user.getId(),
         user.getUsername(),
+        user.isEmailVerified(),
+        user.isTotpEnabled(),
         AddressDto.from(user.getAddress()),
         user.getRoles().stream().map(RoleDto::from).toList());
   }
