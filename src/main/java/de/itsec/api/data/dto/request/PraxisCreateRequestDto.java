@@ -1,6 +1,7 @@
 package de.itsec.api.data.dto.request;
 
 import de.itsec.api.data.dto.response.AddressDto;
+import de.itsec.api.data.dto.response.CoordinatesDto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -15,4 +16,5 @@ import jakarta.validation.constraints.NotNull;
 public record PraxisCreateRequestDto(
     @NotNull(message = "name cannot be null") @NotEmpty(message = "name cannot be empty")
         String name,
-    @NotNull(message = "address cannot be null") @Valid AddressDto address) {}
+    @NotNull(message = "address cannot be null") @Valid AddressDto address,
+    @NotNull(message = "coordinates cannot be null") CoordinatesDto coordinates) {}

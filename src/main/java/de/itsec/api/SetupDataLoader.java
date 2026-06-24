@@ -96,6 +96,9 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
             .city("Musterstadt")
             .areaCode("12345")
             .build());
+    // Coordinates near Mainz so the demo praxis has a real spot on the map.
+    praxis.setLatitude(49.9929);
+    praxis.setLongitude(8.2473);
     praxis = praxisRepository.save(praxis);
 
     // Seed a handful of free 30-minute slots for the next business day.

@@ -44,7 +44,8 @@ public class PraxisController {
   @PostMapping
   @Secured({"ROLE_ADMIN"})
   public ResponseEntity<PraxisDto> create(@Valid @RequestBody PraxisCreateRequestDto request) {
-    Praxis praxis = praxisService.create(request.name(), request.address());
+    Praxis praxis =
+        praxisService.create(request.name(), request.address(), request.coordinates());
     return new ResponseEntity<>(PraxisDto.from(praxis), HttpStatus.CREATED);
   }
 }

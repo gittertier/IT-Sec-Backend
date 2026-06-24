@@ -2,6 +2,7 @@ package de.itsec.api.services;
 
 import de.itsec.api.data.Address;
 import de.itsec.api.data.dto.response.AddressDto;
+import de.itsec.api.data.dto.response.CoordinatesDto;
 import de.itsec.api.data.termin.Praxis;
 import de.itsec.api.repositories.termin.PraxisRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +21,13 @@ public class PraxisService {
     this.praxisRepository = praxisRepository;
   }
 
-  /** Creates and persists a new praxis from a structured address. */
-  public Praxis create(String name, AddressDto address) {
+  /** Creates and persists a new praxis from a structured address and its map coordinates. */
+  public Praxis create(String name, AddressDto address, CoordinatesDto coordinates) {
     Praxis praxis = new Praxis();
     praxis.setName(name);
     praxis.setAddress(toAddress(address));
+    praxis.setLatitude(coordinates.lat());
+    praxis.setLongitude(coordinates.lon());
     return praxisRepository.save(praxis);
   }
 

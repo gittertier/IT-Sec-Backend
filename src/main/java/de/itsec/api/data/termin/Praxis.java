@@ -36,4 +36,9 @@ public class Praxis {
    */
   @ManyToOne(optional = false, cascade = CascadeType.ALL)
   private Address address;
+
+  /** Latitude/longitude for placing the praxis on a map. Set when the praxis is created. */
+  private Double latitude;
+
+  private Double longitude;
 }
