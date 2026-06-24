@@ -4,7 +4,9 @@ import de.itsec.api.authfilter.CsrfCookieFilter;
 import de.itsec.api.authfilter.JsonUsernamePasswordAuthenticationFilter;
 import de.itsec.api.authfilter.RateLimitingFilter;
 import de.itsec.api.authfilter.TotpPendingAuthenticationFilter;
+import de.itsec.api.data.authentication.User;
 import de.itsec.api.data.dto.TotpPendingAuthentication;
+import de.itsec.api.repositories.authentication.UserRepository;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +47,7 @@ public class SecurityConfig {
       HttpSecurity http,
       AuthenticationConfiguration authConfig,
       TotpPendingAuthenticationFilter totpFiler,
+      UserRepository userRepository,
       @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled) {
 
     AuthenticationManager authenticationManager = authConfig.getAuthenticationManager();
@@ -59,17 +62,37 @@ public class SecurityConfig {
     jsonFilter.setAuthenticationSuccessHandler(
         (req, res, auth) -> {
           HttpSession session = req.getSession(true);
-
-          session.setAttribute(
-              "TOTP_PENDING", new TotpPendingAuthentication(auth.getName(), auth.getAuthorities()));
-
-          SecurityContext emptyContext = SecurityContextHolder.createEmptyContext();
-          SecurityContextHolder.setContext(emptyContext);
-          new HttpSessionSecurityContextRepository().saveContext(emptyContext, req, res);
-
-          res.setStatus(HttpServletResponse.SC_ACCEPTED);
           res.setContentType(MediaType.APPLICATION_JSON_VALUE);
-          res.getWriter().write("{\"message\":\"totp required\"}");
+
+          boolean totpEnabled =
+              userRepository.findByUsername(auth.getName()).map(User::isTotpEnabled).orElse(false);
+
+          if (totpEnabled) {
+            // Password was right, but the account has a second factor: keep the
+            // session "pending" (no real authentication yet) until the TOTP code
+            // is verified at /api/v1/public/login/totp.
+            session.setAttribute(
+                "TOTP_PENDING",
+                new TotpPendingAuthentication(auth.getName(), auth.getAuthorities()));
+
+            SecurityContext emptyContext = SecurityContextHolder.createEmptyContext();
+            SecurityContextHolder.setContext(emptyContext);
+            new HttpSessionSecurityContextRepository().saveContext(emptyContext, req, res);
+
+            res.setStatus(HttpServletResponse.SC_ACCEPTED);
+            res.getWriter().write("{\"message\":\"totp required\"}");
+          } else {
+            // No second factor set up yet: this is already a full login. The user
+            // can still set up TOTP afterwards from this session (e.g. right after
+            // registration), so we do not force them out here.
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(auth);
+            SecurityContextHolder.setContext(context);
+            new HttpSessionSecurityContextRepository().saveContext(context, req, res);
+
+            res.setStatus(HttpServletResponse.SC_OK);
+            res.getWriter().write("{\"message\":\"login successful\"}");
+          }
         });
     jsonFilter.setAuthenticationFailureHandler(
         (req, res, ex) -> {
