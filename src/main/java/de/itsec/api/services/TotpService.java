@@ -36,7 +36,6 @@ public class TotpService {
   }
 
   public boolean verifyCode(String secret, String code) {
-    System.out.println("Verifying code " + code + " against secret " + secret);
     return codeVerifier.isValidCode(secret, code);
   }
 }
