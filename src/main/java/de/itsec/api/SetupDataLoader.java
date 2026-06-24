@@ -12,11 +12,13 @@ import de.itsec.api.repositories.authentication.RoleRepository;
 import de.itsec.api.repositories.authentication.UserRepository;
 import de.itsec.api.repositories.termin.PraxisRepository;
 import de.itsec.api.repositories.termin.TerminRepository;
+import de.itsec.api.services.StaffPraxisService;
 import de.itsec.api.utils.AnnotationScanner;
 import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Optional;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -38,6 +40,8 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
   private PraxisRepository praxisRepository;
 
   private TerminRepository terminRepository;
+
+  private StaffPraxisService staffPraxisService;
 
   PasswordEncoder passwordEncoder;
 
@@ -73,13 +77,15 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     // TODO: change!!!!
     createAdminIfNotFound();
     createUserIfNotFound();
-    createDemoPraxisIfNotFound();
+    Praxis demoPraxis = createDemoPraxisIfNotFound();
+    createStaffIfNotFound(demoPraxis);
     alreadySetup = true;
   }
 
-  private void createDemoPraxisIfNotFound() {
-    if (praxisRepository.findByName("Demo Praxis").isPresent()) {
-      return;
+  private Praxis createDemoPraxisIfNotFound() {
+    Optional<Praxis> existing = praxisRepository.findByName("Demo Praxis");
+    if (existing.isPresent()) {
+      return existing.get();
     }
     Praxis praxis = new Praxis();
     praxis.setName("Demo Praxis");
@@ -98,6 +104,24 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
       terminRepository.save(termin);
       slotStart = slotStart.plusMinutes(30);
     }
+    return praxis;
+  }
+
+  private void createStaffIfNotFound(Praxis praxis) {
+    if (userRepository.findByUsername("staff").isPresent()) {
+      return;
+    }
+    Role staffRole = roleRepository.findByName("ROLE_STAFF");
+    User user = new User();
+    user.setPassword(passwordEncoder.encode("staff"));
+    user.setUsername("staff@staff.com");
+    user.setFirstName("staff");
+    user.setLastName("staff");
+    user.setRoles(Arrays.asList(staffRole));
+    User saved = userRepository.save(user);
+
+    // Bind the staff member to their praxis pseudonymously, just like an appointment booking.
+    staffPraxisService.assign(saved.getId(), praxis);
   }
 
   private void createAdminIfNotFound() {
@@ -166,18 +190,19 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
   }
 
   @Autowired
-  public SetupDataLoader(
-      UserRepository userRepository,
-      RoleRepository roleRepository,
-      PrivilegeRepository privilegeRepository,
-      PraxisRepository praxisRepository,
-      TerminRepository terminRepository,
-      PasswordEncoder passwordEncoder) {
+  public SetupDataLoader(UserRepository userRepository,
+                         RoleRepository roleRepository,
+                         PrivilegeRepository privilegeRepository,
+                         PraxisRepository praxisRepository,
+                         TerminRepository terminRepository,
+                         StaffPraxisService staffPraxisService,
+                         PasswordEncoder passwordEncoder) {
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.privilegeRepository = privilegeRepository;
     this.praxisRepository = praxisRepository;
     this.terminRepository = terminRepository;
+    this.staffPraxisService = staffPraxisService;
     this.passwordEncoder = passwordEncoder;
   }
 }
