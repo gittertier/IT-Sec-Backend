@@ -1,0 +1,21 @@
+# Build-Kontext schlank + sicher halten.
+# Vor allem: .env (echte Mail-/DB-Secrets) und data/ (Pseudonym-Mappings)
+# NIEMALS ins Image kopieren.
+.env
+.env.*
+!.env.example
+data
+build
+.gradle
+bin
+out
+.git
+.gitignore
+.idea
+*.iml
+.DS_Store
+HELP.md
+*.md
+Dockerfile
+.dockerignore
+docker-compose.yml
