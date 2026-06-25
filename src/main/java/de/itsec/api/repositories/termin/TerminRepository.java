@@ -20,13 +20,17 @@ public interface TerminRepository extends JpaRepository<Termin, UUID> {
    * criterion. Filters by praxis, the praxis' postal code (now part of the praxis address), status
    * and a start-time range. Ordering is controlled by the {@link Pageable}.
    */
+  // Optional filters use COALESCE(:param, column) instead of ":param IS NULL OR ...".
+  // With the IS NULL form PostgreSQL gets an untyped NULL bind and fails with
+  // "could not determine data type of parameter". COALESCE lets it read the type
+  // from the column, and a null param collapses to "column = column" (always true).
   @Query(
       "SELECT t FROM Termin t WHERE "
-          + "(:praxisId IS NULL OR t.praxis.id = :praxisId) AND "
-          + "(:postalCode IS NULL OR t.praxis.address.areaCode = :postalCode) AND "
-          + "(:status IS NULL OR t.status = :status) AND "
-          + "(:from IS NULL OR t.startTime >= :from) AND "
-          + "(:to IS NULL OR t.startTime <= :to)")
+          + "t.praxis.id = COALESCE(:praxisId, t.praxis.id) AND "
+          + "t.praxis.address.areaCode = COALESCE(:postalCode, t.praxis.address.areaCode) AND "
+          + "t.status = COALESCE(:status, t.status) AND "
+          + "t.startTime >= COALESCE(:from, t.startTime) AND "
+          + "t.startTime <= COALESCE(:to, t.startTime)")
   Page<Termin> filter(
       @Param("praxisId") UUID praxisId,
       @Param("postalCode") String postalCode,
@@ -43,12 +47,13 @@ public interface TerminRepository extends JpaRepository<Termin, UUID> {
    * A single user's own slots (scoped by pseudonym), paged, with optional praxis, status and
    * start-time range filters. {@code null} disables that criterion.
    */
+  // Same COALESCE trick as filter() to keep optional parameters PostgreSQL safe.
   @Query(
       "SELECT t FROM Termin t WHERE t.pseudoUserId = :pseudoUserId AND "
-          + "(:praxisId IS NULL OR t.praxis.id = :praxisId) AND "
-          + "(:status IS NULL OR t.status = :status) AND "
-          + "(:from IS NULL OR t.startTime >= :from) AND "
-          + "(:to IS NULL OR t.startTime <= :to)")
+          + "t.praxis.id = COALESCE(:praxisId, t.praxis.id) AND "
+          + "t.status = COALESCE(:status, t.status) AND "
+          + "t.startTime >= COALESCE(:from, t.startTime) AND "
+          + "t.startTime <= COALESCE(:to, t.startTime)")
   Page<Termin> filterForPseudoUser(
       @Param("pseudoUserId") UUID pseudoUserId,
       @Param("praxisId") UUID praxisId,
