@@ -14,12 +14,14 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /** UserService */
+@Slf4j
 @Service
 public class UserService {
 
@@ -195,7 +197,14 @@ public class UserService {
 
     this.userRepository.saveAndFlush(user);
 
-    this.emailService.sendVerificationEmail(user);
+    // Sending the mail is best effort: a missing or unreachable SMTP server must
+    // not fail registration. The token is already saved, so the user can still
+    // verify later (resend via /verify-request) once mail is configured.
+    try {
+      this.emailService.sendVerificationEmail(user);
+    } catch (Exception e) {
+      log.warn("Could not send verification email: {}", e.getMessage());
+    }
   }
 
   public void verifyVerificationToken(User user, String token) {
