@@ -25,7 +25,7 @@ import org.springframework.stereotype.Service;
 public class TerminService {
 
   /** Maximum number of upcoming, booked slots a single user may hold at once. */
-  static final int MAX_ACTIVE_BOOKINGS_PER_USER = 3;
+  static final int MAX_ACTIVE_BOOKINGS_PER_USER = 2;
 
   private final TerminRepository terminRepository;
   private final PraxisRepository praxisRepository;
@@ -166,9 +166,10 @@ public class TerminService {
    *
    * @param slotId the booked slot
    * @param userId the real user id of the requesting user
+   * @return the released slot, still carrying the time and praxis for the cancellation email
    */
   @Transactional
-  public void cancel(UUID slotId, UUID userId) {
+  public Termin cancel(UUID slotId, UUID userId) {
     Termin slot =
         terminRepository
             .findById(slotId)
@@ -181,7 +182,7 @@ public class TerminService {
 
     slot.setStatus(TerminStatus.FREE);
     slot.setPseudoUserId(null);
-    terminRepository.save(slot);
+    return terminRepository.save(slot);
   }
 
   /**

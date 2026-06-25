@@ -20,12 +20,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import de.itsec.api.PermissionRoles;
 import de.itsec.api.data.authentication.User;
 import de.itsec.api.data.dto.request.TerminCreateRequestDto;
+import de.itsec.api.data.dto.response.StaffTerminDto;
 import de.itsec.api.data.dto.response.TerminDto;
 import de.itsec.api.data.termin.Termin;
 import de.itsec.api.data.termin.TerminStatus;
+import de.itsec.api.services.EmailService;
+import de.itsec.api.services.PseudoMappingService;
 import de.itsec.api.services.StaffPraxisService;
 import de.itsec.api.services.TerminService;
 import de.itsec.api.services.UserService;
@@ -39,18 +45,40 @@ import jakarta.validation.Valid;
 @RequestMapping("/api/v1/termine")
 public class TerminController {
 
+  private static final Logger log = LoggerFactory.getLogger(TerminController.class);
+
   private final TerminService terminService;
   private final UserService userService;
   private final StaffPraxisService staffPraxisService;
+  private final EmailService emailService;
+  private final PseudoMappingService pseudoMappingService;
 
   @Autowired
   public TerminController(
       TerminService terminService,
       UserService userService,
-      StaffPraxisService staffPraxisService) {
+      StaffPraxisService staffPraxisService,
+      EmailService emailService,
+      PseudoMappingService pseudoMappingService) {
     this.terminService = terminService;
     this.userService = userService;
     this.staffPraxisService = staffPraxisService;
+    this.emailService = emailService;
+    this.pseudoMappingService = pseudoMappingService;
+  }
+
+  // Resolves the booker of a booked slot back to a real user (de-pseudonymization).
+  // Only ever called for a staff member viewing their own praxis, so the booking
+  // pseudonymity towards everyone else is preserved.
+  private StaffTerminDto.Booker resolveBooker(Termin termin) {
+    if (termin.getStatus() != TerminStatus.BOOKED || termin.getPseudoUserId() == null) {
+      return null;
+    }
+    return pseudoMappingService
+        .userIdFor(termin.getPseudoUserId())
+        .flatMap(userService::findById)
+        .map(StaffTerminDto.Booker::from)
+        .orElse(null);
   }
 
   /**
@@ -75,7 +103,7 @@ public class TerminController {
    */
   @GetMapping("/search")
   @Secured({"ROLE_ADMIN", "ROLE_STAFF"})
-  public Page<TerminDto> search(
+  public Page<StaffTerminDto> search(
       @RequestParam(required = false) UUID praxisId,
       @RequestParam(required = false) String postalCode,
       @RequestParam(required = false) TerminStatus status,
@@ -85,9 +113,12 @@ public class TerminController {
       Principal principal) {
     User caller = userService.getUserByUsername(principal.getName());
     UUID scopedPraxisId = scopePraxisForSearch(caller, praxisId);
+    // Staff see the booker of slots at their own praxis; an admin's broader view
+    // stays pseudonymous.
+    boolean includeBooker = !isAdmin(caller);
     return terminService
         .filter(scopedPraxisId, postalCode, status, from, to, pageable)
-        .map(TerminDto::from);
+        .map(termin -> StaffTerminDto.from(termin, includeBooker ? resolveBooker(termin) : null));
   }
 
   /**
@@ -129,20 +160,40 @@ public class TerminController {
     return new ResponseEntity<>(TerminDto.from(slot), HttpStatus.CREATED);
   }
 
-  /** Books a free slot for the current user. */
+  /** Books a free slot for the current user and emails a confirmation. */
   @PostMapping("/{slotId}/book")
   public ResponseEntity<TerminDto> book(@PathVariable UUID slotId, Principal principal) {
-    UUID userId = currentUserId(principal);
-    Termin booked = terminService.book(slotId, userId);
+    User user = userService.getUserByUsername(principal.getName());
+    Termin booked = terminService.book(slotId, user.getId());
+    sendBookingMailQuietly(user, booked);
     return ResponseEntity.ok(TerminDto.from(booked));
   }
 
-  /** Cancels one of the current user's appointments, releasing the slot. */
+  /** Cancels one of the current user's appointments, releasing the slot, and emails a confirmation. */
   @PostMapping("/{slotId}/cancel")
   public ResponseEntity<Void> cancel(@PathVariable UUID slotId, Principal principal) {
-    UUID userId = currentUserId(principal);
-    terminService.cancel(slotId, userId);
+    User user = userService.getUserByUsername(principal.getName());
+    Termin cancelled = terminService.cancel(slotId, user.getId());
+    sendCancellationMailQuietly(user, cancelled);
     return ResponseEntity.noContent().build();
+  }
+
+  // Confirmation emails are best effort: the booking/cancellation is already committed,
+  // so a mail problem (SMTP down, bad address) must never fail the request.
+  private void sendBookingMailQuietly(User user, Termin termin) {
+    try {
+      emailService.sendBookingConfirmation(user, termin);
+    } catch (Exception e) {
+      log.warn("Could not send booking confirmation: {}", e.getMessage());
+    }
+  }
+
+  private void sendCancellationMailQuietly(User user, Termin termin) {
+    try {
+      emailService.sendCancellationConfirmation(user, termin);
+    } catch (Exception e) {
+      log.warn("Could not send cancellation confirmation: {}", e.getMessage());
+    }
   }
 
   private UUID currentUserId(Principal principal) {

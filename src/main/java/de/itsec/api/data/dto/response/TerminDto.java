@@ -7,7 +7,8 @@ import java.util.UUID;
 
 /**
  * Public view of an appointment slot. Deliberately omits the pseudonym so no identifying handle
- * leaves the service.
+ * leaves the service. The address is not duplicated here: it lives on the praxis (referenced via
+ * praxisId/praxisName), and the client maps it onto the slot for display.
  */
 public record TerminDto(
     UUID id,
