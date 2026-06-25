@@ -30,14 +30,17 @@ public class ApiUserDetailsService implements UserDetailsService {
             .findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
+    // Until the account has BOTH verified its email AND set up TOTP it only gets a
+    // restricted onboarding authority. SecurityConfig lets ROLE_ONBOARDING reach
+    // just the onboarding endpoints (verify email, set up/confirm TOTP, read /me)
+    // and nothing else, so a half-onboarded account cannot do anything.
+    Collection<? extends GrantedAuthority> authorities =
+        user.isEmailVerified() && user.isTotpEnabled()
+            ? getAuthorities(user.getRoles())
+            : List.of(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+
     return new org.springframework.security.core.userdetails.User(
-        user.getUsername(),
-        user.getPassword(),
-        true,
-        true,
-        true,
-        true,
-        getAuthorities(user.getRoles()));
+        user.getUsername(), user.getPassword(), true, true, true, true, authorities);
   }
 
   private Collection<? extends GrantedAuthority> getAuthorities(Collection<Role> roles) {

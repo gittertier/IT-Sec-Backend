@@ -125,6 +125,9 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     user.setUsername("staff@staff.com");
     user.setFirstName("staff");
     user.setLastName("staff");
+    // Email pre-verified like the other seed accounts, so the demo only has to do
+    // the TOTP step of onboarding (no SMTP needed for the seeded users).
+    user.setEmailVerified(true);
     user.setRoles(Arrays.asList(staffRole));
     User saved = userRepository.save(user);
 

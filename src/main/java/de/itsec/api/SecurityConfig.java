@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthenticatedAuthorizationManager;
@@ -118,17 +119,30 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             auth -> {
               auth.requestMatchers("/api/v1/public/**", "/error").permitAll();
-              auth.requestMatchers("/api/v1/totp/setup", "/api/v1/totp/confirm")
-                  .hasAnyRole("USER", "TOTP_PENDING");
+              // Onboarding endpoints: reachable while an account is still finishing
+              // onboarding (ROLE_ONBOARDING), plus normal logged-in users.
+              auth.requestMatchers(
+                      "/api/v1/totp/setup",
+                      "/api/v1/totp/confirm",
+                      "/api/v1/verify-email",
+                      "/api/v1/verify-request")
+                  .hasAnyRole("USER", "ADMIN", "STAFF", "ONBOARDING");
+              // Reading the own profile drives the onboarding UI, so allow it too.
+              auth.requestMatchers(HttpMethod.GET, "/api/v1/me")
+                  .hasAnyRole("USER", "ADMIN", "STAFF", "ONBOARDING");
               if (apiDocsEnabled) {
                 auth.requestMatchers(API_DOCS_WHITELIST).permitAll();
               }
+              // Everything else needs a fully onboarded account: authenticated and
+              // neither still onboarding nor mid-2FA-login.
               auth.anyRequest()
                   .access(
                       AuthorizationManagers.allOf(
                           AuthenticatedAuthorizationManager.authenticated(),
                           AuthorizationManagers.not(
-                              AuthorityAuthorizationManager.hasRole("TOTP_PENDING"))));
+                              AuthorityAuthorizationManager.hasRole("TOTP_PENDING")),
+                          AuthorizationManagers.not(
+                              AuthorityAuthorizationManager.hasRole("ONBOARDING"))));
             })
         // login filter before credentials checking for brute force
         .addFilterBefore(new RateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
