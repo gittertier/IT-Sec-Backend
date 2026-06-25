@@ -3,9 +3,16 @@ package de.itsec.api.controllers.v1;
 import de.itsec.api.data.authentication.User;
 import de.itsec.api.data.dto.request.UserPostRequestDto;
 import de.itsec.api.data.dto.response.UserDto;
+import de.itsec.api.data.termin.Praxis;
+import de.itsec.api.exceptions.PublicExceptions;
+import de.itsec.api.repositories.termin.PraxisRepository;
+import de.itsec.api.services.StaffPraxisService;
 import de.itsec.api.services.UserService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +30,9 @@ import org.springframework.web.bind.annotation.RestController;
 @Secured({"ROLE_ADMIN"})
 public class AdminUserController {
 
-  private UserService userService;
+  private final UserService userService;
+  private final StaffPraxisService staffPraxisService;
+  private final PraxisRepository praxisRepository;
 
   @GetMapping()
   public List<UserDto> getAllUsers() {
@@ -46,14 +55,40 @@ public class AdminUserController {
     return new ResponseEntity<>(UserDto.from(user), HttpStatus.CREATED);
   }
 
+  /** Creates a staff account and binds it to a praxis. */
+  @PostMapping("/staff")
+  public ResponseEntity<UserDto> createStaff(@Valid @RequestBody StaffCreateRequest request) {
+    Praxis praxis =
+        praxisRepository
+            .findById(request.praxisId())
+            .orElseThrow(PublicExceptions.PraxisNotFoundException::new);
+    User staff =
+        userService.createStaff(
+            request.username(), request.password(), request.firstName(), request.lastName());
+    staffPraxisService.assign(staff.getId(), praxis);
+    return new ResponseEntity<>(UserDto.from(staff), HttpStatus.CREATED);
+  }
+
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
     userService.deleteUser(id);
     return ResponseEntity.noContent().build();
   }
 
+  public record StaffCreateRequest(
+      @NotNull @NotEmpty String username,
+      @NotNull @NotEmpty String password,
+      String firstName,
+      String lastName,
+      @NotNull UUID praxisId) {}
+
   @Autowired
-  public AdminUserController(UserService userService) {
+  public AdminUserController(
+      UserService userService,
+      StaffPraxisService staffPraxisService,
+      PraxisRepository praxisRepository) {
     this.userService = userService;
+    this.staffPraxisService = staffPraxisService;
+    this.praxisRepository = praxisRepository;
   }
 }

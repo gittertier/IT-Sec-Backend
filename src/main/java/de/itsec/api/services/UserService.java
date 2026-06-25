@@ -189,6 +189,29 @@ public class UserService {
     return returnUser;
   }
 
+  /**
+   * Creates a staff account (admin operation). The email is pre-verified because an admin set the
+   * account up, so the staff member only has to set up TOTP on first login. The praxis link is done
+   * by the caller via StaffPraxisService.
+   */
+  public User createStaff(String username, String password, String firstName, String lastName) {
+    if (this.userRepository.findByUsername(username).isPresent()) {
+      throw new PublicExceptions.UsernameAlreadyExistsException();
+    }
+    isPasswordStrong(password);
+
+    Role staffRole = this.roleService.getRole(PermissionRoles.STAFF);
+
+    User user = new User();
+    user.setPassword(passwordEncoder.encode(password));
+    user.setUsername(username);
+    user.setFirstName(firstName);
+    user.setLastName(lastName);
+    user.setEmailVerified(true);
+    user.setRoles(List.of(staffRole));
+    return userRepository.save(user);
+  }
+
   public void sendVerificationToken(User user) {
     String token = randomString(48);
 
