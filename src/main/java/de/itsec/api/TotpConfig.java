@@ -27,11 +27,15 @@ public class TotpConfig {
 
   @Bean
   public CodeVerifier codeVerifier() {
+    // SHA1 must match the algorithm advertised in the QR (TotpService). Manually
+    // typed keys assume SHA1, so using SHA256 here broke manual setup.
     DefaultCodeVerifier verifier =
         new DefaultCodeVerifier(
-            new DefaultCodeGenerator(HashingAlgorithm.SHA256), new SystemTimeProvider());
+            new DefaultCodeGenerator(HashingAlgorithm.SHA1), new SystemTimeProvider());
     verifier.setTimePeriod(30);
-    verifier.setAllowedTimePeriodDiscrepancy(2);
+    // Allow only +/-1 step (was 2), so a captured code stays valid for a shorter
+    // window - smaller replay surface.
+    verifier.setAllowedTimePeriodDiscrepancy(1);
     return verifier;
   }
 }

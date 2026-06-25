@@ -26,8 +26,12 @@ public class TotpService {
         new QrData.Builder()
             .label(username)
             .secret(secret)
-            .issuer("YourAppName")
-            .algorithm(HashingAlgorithm.SHA256)
+            .issuer("Impfterminportal RLP")
+            // SHA1/6/30 are the TOTP defaults every authenticator assumes when a key
+            // is typed in by hand. The verifier in TotpConfig must use the same
+            // algorithm, otherwise a scanned QR (which carries the algorithm) would
+            // work while a manually entered key would produce wrong codes.
+            .algorithm(HashingAlgorithm.SHA1)
             .digits(6)
             .period(30)
             .build();
