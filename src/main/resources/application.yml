@@ -49,5 +49,7 @@ pseudo:
   key: j0rqaGbymsASTTKdeBUwNnArEG1JH40O
 
 mail:
-  from: ${EMAIL_FROM}
-  verification-base-url: ${EMAIL_VERIFICATION_BASE_URL}
+  from: ${EMAIL_FROM:noreply@impfportal.local}
+  # Default points at the frontend's verify page, so a missing env var does not
+  # crash startup and the mailed link lands on /verify-email/{token}.
+  verification-base-url: ${EMAIL_VERIFICATION_BASE_URL:http://localhost:3000/verify-email/}
