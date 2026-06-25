@@ -59,7 +59,7 @@ public class PublicExceptions {
 
   public static class VerificationTokenExpiredException extends AbstractPublicException {
     public VerificationTokenExpiredException() {
-      super("Verfication Token expired");
+      super("Verification token expired");
     }
   }
 }

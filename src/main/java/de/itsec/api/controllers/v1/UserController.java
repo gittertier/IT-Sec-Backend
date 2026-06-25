@@ -63,6 +63,17 @@ public class UserController {
     return ResponseEntity.noContent().build();
   }
 
+  /**
+   * Turns off two-factor after re-auth so the user can enroll a fresh authenticator. The account
+   * stays logged in; it sets up a new secret right after via the normal totp setup/confirm flow.
+   */
+  @PostMapping("/me/totp/disable")
+  public ResponseEntity<Void> disableTotp(
+      @RequestBody @Valid PasswordOnlyDto body, Principal principal) {
+    userService.disableTotp(principal.getName(), body.currentPassword());
+    return ResponseEntity.noContent().build();
+  }
+
   @GetMapping("/me/notifications")
   public ResponseEntity<NotificationPrefs> getNotifications(Principal principal) {
     User user = userService.getUserByUsername(principal.getName());
@@ -110,8 +121,7 @@ public class UserController {
 
   public record VerificationRequestDto(String token) {}
 
-  public record UserPatchDto(
-      String username, String firstName, String lastName, AddressPatchDto address) {}
+  public record UserPatchDto(String firstName, String lastName, AddressPatchDto address) {}
 
   public record AddressPatchDto(
       String street, String city, String postalCode, String houseNumber) {}

@@ -13,6 +13,8 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +32,7 @@ public class UserService {
           + "(?=.*[A-Z])" // at least one uppercase letter
           + "(?=.*\\d)" // at least one digit
           + "(?=.*[^A-Za-z\\d])" // at least one special character (any non-alphanumeric)
-          + ".{8,}$"; // at least 8 characters
+          + ".{12,}$"; // at least 12 characters (matches the client-side rule)
 
   private static final String CHARS =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -54,15 +56,7 @@ public class UserService {
    * @throws Exception if the current password is incorrect or the user is not found.
    */
   public void updatePassword(String username, String currentPassword, String newPassword) {
-    User user =
-        userRepository
-            .findByUsername(username)
-            .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-
-    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-      throw new IllegalArgumentException("Current password is incorrect");
-    }
-
+    User user = verifyPassword(username, currentPassword);
     isPasswordStrong(newPassword);
     user.setPassword(passwordEncoder.encode(newPassword));
     userRepository.save(user);
@@ -78,8 +72,10 @@ public class UserService {
     return userRepository.findByUsername(username).isPresent();
   }
 
-  public User getUserById(Long id) {
-    return userRepository.findById(id).orElseThrow(() -> new RuntimeException("id not found"));
+  public User getUserById(UUID id) {
+    return userRepository
+        .findById(id)
+        .orElseThrow(() -> new PublicExceptions.IllegalArgumentsException("User not found"));
   }
 
   public User patchUser(String username, UserController.UserPatchDto patch) {
@@ -88,9 +84,8 @@ public class UserService {
             .findByUsername(username)
             .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-    if (patch.username() != null) {
-      user.setUsername(patch.username());
-    }
+    // username (= login identity) is intentionally NOT patchable here: changing it
+    // goes through changeEmail with re-auth, uniqueness check and session reset.
     if (patch.firstName() != null) {
       user.setFirstName(patch.firstName());
     }
@@ -151,13 +146,18 @@ public class UserService {
    *
    * @param id The id of the user to delete.
    */
-  public void deleteUser(Long id) {
+  public void deleteUser(UUID id) {
     userRepository.deleteById(id);
   }
 
   /** Gets all users from the repository. */
   public List<User> getAllUsers() {
     return userRepository.findAll();
+  }
+
+  /** Looks up a user by id without throwing (used to resolve a booker for staff). */
+  public Optional<User> findById(UUID id) {
+    return userRepository.findById(id);
   }
 
   public User createUser(UserPostRequestDto userDto) {
@@ -214,10 +214,7 @@ public class UserService {
 
   /** Changes the login email (= username) after re-auth. The new address must be free. */
   public User changeEmail(String username, String newEmail, String currentPassword) {
-    User user = getUserByUsername(username);
-    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-      throw new IllegalArgumentException("Current password is incorrect");
-    }
+    User user = verifyPassword(username, currentPassword);
     if (!username.equals(newEmail) && userRepository.findByUsername(newEmail).isPresent()) {
       throw new PublicExceptions.UsernameAlreadyExistsException();
     }
@@ -235,9 +232,22 @@ public class UserService {
   public User verifyPassword(String username, String currentPassword) {
     User user = getUserByUsername(username);
     if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-      throw new IllegalArgumentException("Current password is incorrect");
+      // Public exception so a wrong password is a clean 400, not a 500.
+      throw new PublicExceptions.IllegalArgumentsException("Current password is incorrect");
     }
     return user;
+  }
+
+  /**
+   * Turns off the second factor after re-auth, clearing the active and any pending secret. The
+   * account can then enroll a fresh authenticator via the normal totp setup/confirm flow.
+   */
+  public void disableTotp(String username, String currentPassword) {
+    User user = verifyPassword(username, currentPassword);
+    user.setTotpEnabled(false);
+    user.setTotpSecret(null);
+    user.setPendingTotpSecret(null);
+    userRepository.save(user);
   }
 
   public void delete(User user) {
