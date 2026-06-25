@@ -119,10 +119,13 @@ public class TerminController {
   public ResponseEntity<TerminDto> createSlot(
       @Valid @RequestBody TerminCreateRequestDto request, Principal principal) {
     User caller = userService.getUserByUsername(principal.getName());
-    authorizePraxisAccess(caller, request.praxisId());
+    // Staff may omit praxisId; it then comes from their own assignment (the
+    // praxis from the session, never from the body).
+    UUID praxisId = request.praxisId() != null ? request.praxisId() : requireStaffPraxis(caller);
+    authorizePraxisAccess(caller, praxisId);
     Termin slot =
         terminService.createSlot(
-            request.praxisId(), request.startTime(), request.endTime(), request.vaccine());
+            praxisId, request.startTime(), request.endTime(), request.vaccine());
     return new ResponseEntity<>(TerminDto.from(slot), HttpStatus.CREATED);
   }
 
