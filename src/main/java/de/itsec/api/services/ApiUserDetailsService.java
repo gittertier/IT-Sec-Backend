@@ -30,14 +30,18 @@ public class ApiUserDetailsService implements UserDetailsService {
             .findByUsername(username)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-    // Until the account has BOTH verified its email AND set up TOTP it only gets a
-    // restricted onboarding authority. SecurityConfig lets ROLE_ONBOARDING reach
-    // just the onboarding endpoints (verify email, set up/confirm TOTP, read /me)
-    // and nothing else, so a half-onboarded account cannot do anything.
-    Collection<? extends GrantedAuthority> authorities =
-        user.isEmailVerified() && user.isTotpEnabled()
-            ? getAuthorities(user.getRoles())
-            : List.of(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+    // The real role (USER/STAFF/ADMIN) is ALWAYS granted, so the account's role
+    // stays visible in the session, in /me and in audits - we never overwrite it.
+    // While onboarding is unfinished (email not verified or TOTP not set up) we add
+    // a ROLE_ONBOARDING marker on top. SecurityConfig denies every non-onboarding
+    // endpoint as long as that marker is present, and that URL check runs before
+    // method security, so a half-onboarded admin still cannot reach an
+    // @Secured("ROLE_ADMIN") endpoint. ROLE_ONBOARDING is thus a status flag, not a
+    // replacement for the role.
+    List<GrantedAuthority> authorities = new ArrayList<>(getAuthorities(user.getRoles()));
+    if (!(user.isEmailVerified() && user.isTotpEnabled())) {
+      authorities.add(new SimpleGrantedAuthority("ROLE_ONBOARDING"));
+    }
 
     return new org.springframework.security.core.userdetails.User(
         user.getUsername(), user.getPassword(), true, true, true, true, authorities);
