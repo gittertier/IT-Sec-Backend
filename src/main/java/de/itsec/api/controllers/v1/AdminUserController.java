@@ -40,7 +40,7 @@ public class AdminUserController {
   }
 
   @GetMapping("/{id}")
-  public ResponseEntity<UserDto> getUser(@PathVariable Long id) {
+  public ResponseEntity<UserDto> getUser(@PathVariable UUID id) {
     User user = userService.getUserById(id);
     if (user == null) {
       return ResponseEntity.notFound().build();
@@ -70,7 +70,7 @@ public class AdminUserController {
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+  public ResponseEntity<Void> deleteUser(@PathVariable UUID id) {
     userService.deleteUser(id);
     return ResponseEntity.noContent().build();
   }
