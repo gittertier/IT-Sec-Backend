@@ -66,3 +66,12 @@ mail:
   # Default points at the frontend's verify page, so a missing env var does not
   # crash startup and the mailed link lands on /verify-email/{token}.
   verification-base-url: ${EMAIL_VERIFICATION_BASE_URL:http://localhost:3000/verify-email/}
+
+app-env:
+  mode: ${APP_ENV}
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN}
+
+prod:
+  admin-username: ${PROD_ADMIN_USERNAME}
+  admin-password: ${PROD_ADMIN_PASSWORD}

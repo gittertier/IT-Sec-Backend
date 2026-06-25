@@ -1,11 +1,10 @@
 package de.itsec.api;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
-import org.springframework.mail.MailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchyImpl;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -13,6 +12,9 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @SpringBootApplication
 public class ApiApplication implements CommandLineRunner {
+
+  @Value("${app-env.cors.allowed-origin}")
+  private String allowedOrigin;
 
   public static void main(String[] args) {
     SpringApplication.run(ApiApplication.class, args);
@@ -27,7 +29,12 @@ public class ApiApplication implements CommandLineRunner {
     return new WebMvcConfigurer() {
       @Override
       public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**").allowedOrigins().allowCredentials(true);
+        registry
+            .addMapping("/**")
+            .allowedOrigins(allowedOrigin)
+            .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            .allowedHeaders("*")
+            .allowCredentials(true);
       }
     };
   }
