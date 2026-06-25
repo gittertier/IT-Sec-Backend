@@ -51,3 +51,12 @@ pseudo:
 mail:
   from: ${EMAIL_FROM}
   verification-base-url: ${EMAIL_VERIFICATION_BASE_URL}
+
+app-env:
+  mode: ${APP_ENV}
+  cors:
+    allowed-origin: ${CORS_ALLOWED_ORIGIN}
+
+prod:
+  admin-username: ${PROD_ADMIN_USERNAME}
+  admin-password: ${PROD_ADMIN_PASSWORD}

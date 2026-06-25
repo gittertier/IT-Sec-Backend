@@ -18,11 +18,12 @@ import jakarta.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Optional;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,6 +47,10 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
   PasswordEncoder passwordEncoder;
 
   boolean alreadySetup = false;
+
+  private final String env;
+  private final String adminUsername;
+  private final String adminPassword;
 
   @Override
   @Transactional
@@ -73,6 +78,12 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     createRoleIfNotFound("ROLE_STAFF", Arrays.asList(readPrivilege));
     createRoleIfNotFound("ROLE_TEST", Arrays.asList());
     createRoleIfNotFound("ROLE_USER", Arrays.asList(readPrivilege));
+
+    if (this.env.equals("prod")) {
+      createAdminIfNotFound(this.adminUsername, this.adminPassword);
+      alreadySetup = true;
+      return;
+    }
 
     // TODO: change!!!!
     createAdminIfNotFound();
@@ -125,13 +136,17 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
   }
 
   private void createAdminIfNotFound() {
-    if (userRepository.findByUsername("admin").isPresent()) {
+    createAdminIfNotFound("admin@admin.com", "admin");
+  }
+
+  private void createAdminIfNotFound(String username, String password) {
+    if (userRepository.findByUsername(username).isPresent()) {
       return;
     }
     Role adminRole = roleRepository.findByName("ROLE_ADMIN");
     User user = new User();
-    user.setPassword(passwordEncoder.encode("admin"));
-    user.setUsername("admin@admin.com");
+    user.setPassword(passwordEncoder.encode(password));
+    user.setUsername(username);
     user.setFirstName("admin");
     user.setLastName("admin");
     user.setAddress(
@@ -190,13 +205,17 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
   }
 
   @Autowired
-  public SetupDataLoader(UserRepository userRepository,
-                         RoleRepository roleRepository,
-                         PrivilegeRepository privilegeRepository,
-                         PraxisRepository praxisRepository,
-                         TerminRepository terminRepository,
-                         StaffPraxisService staffPraxisService,
-                         PasswordEncoder passwordEncoder) {
+  public SetupDataLoader(
+      UserRepository userRepository,
+      RoleRepository roleRepository,
+      PrivilegeRepository privilegeRepository,
+      PraxisRepository praxisRepository,
+      TerminRepository terminRepository,
+      StaffPraxisService staffPraxisService,
+      PasswordEncoder passwordEncoder,
+      @Value("${prod.admin-password}") String adminPassword,
+      @Value("${prod.admin-username}") String adminUsername,
+      @Value("${app-env.mode}") String env) {
     this.userRepository = userRepository;
     this.roleRepository = roleRepository;
     this.privilegeRepository = privilegeRepository;
@@ -204,5 +223,8 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     this.terminRepository = terminRepository;
     this.staffPraxisService = staffPraxisService;
     this.passwordEncoder = passwordEncoder;
+    this.adminPassword = adminPassword;
+    this.adminUsername = adminUsername;
+    this.env = env;
   }
 }
