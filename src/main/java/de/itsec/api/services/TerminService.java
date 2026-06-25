@@ -183,4 +183,25 @@ public class TerminService {
     slot.setPseudoUserId(null);
     terminRepository.save(slot);
   }
+
+  /**
+   * Frees all future booked slots a user holds (used when the account is deleted), so the slots go
+   * back to FREE for everyone else.
+   */
+  @Transactional
+  public void releaseFutureBookings(UUID userId) {
+    pseudoMappingService
+        .pseudoIdFor(userId)
+        .ifPresent(
+            pseudoId -> {
+              LocalDateTime now = LocalDateTime.now();
+              for (Termin slot :
+                  terminRepository.findByPseudoUserIdAndStatusAndStartTimeAfter(
+                      pseudoId, TerminStatus.BOOKED, now)) {
+                slot.setStatus(TerminStatus.FREE);
+                slot.setPseudoUserId(null);
+                terminRepository.save(slot);
+              }
+            });
+  }
 }

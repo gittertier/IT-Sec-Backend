@@ -212,6 +212,38 @@ public class UserService {
     return userRepository.save(user);
   }
 
+  /** Changes the login email (= username) after re-auth. The new address must be free. */
+  public User changeEmail(String username, String newEmail, String currentPassword) {
+    User user = getUserByUsername(username);
+    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+      throw new IllegalArgumentException("Current password is incorrect");
+    }
+    if (!username.equals(newEmail) && userRepository.findByUsername(newEmail).isPresent()) {
+      throw new PublicExceptions.UsernameAlreadyExistsException();
+    }
+    user.setUsername(newEmail);
+    return userRepository.save(user);
+  }
+
+  public User setAppointmentReminders(String username, boolean enabled) {
+    User user = getUserByUsername(username);
+    user.setAppointmentReminders(enabled);
+    return userRepository.save(user);
+  }
+
+  /** Re-auth helper: checks the account password and returns the user. */
+  public User verifyPassword(String username, String currentPassword) {
+    User user = getUserByUsername(username);
+    if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+      throw new IllegalArgumentException("Current password is incorrect");
+    }
+    return user;
+  }
+
+  public void delete(User user) {
+    userRepository.delete(user);
+  }
+
   public void sendVerificationToken(User user) {
     String token = randomString(48);
 

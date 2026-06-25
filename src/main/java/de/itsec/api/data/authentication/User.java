@@ -54,6 +54,9 @@ public class User {
 
   private boolean totpEnabled = false;
 
+  // Whether the user wants appointment reminder emails. On by default.
+  private boolean appointmentReminders = true;
+
   @ManyToMany
   @JoinTable(
       name = "users_roles",
