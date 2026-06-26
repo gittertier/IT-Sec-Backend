@@ -20,10 +20,6 @@ public interface TerminRepository extends JpaRepository<Termin, UUID> {
    * criterion. Filters by praxis, the praxis' postal code (now part of the praxis address), status
    * and a start-time range. Ordering is controlled by the {@link Pageable}.
    */
-  // Optional filters use COALESCE(:param, column) instead of ":param IS NULL OR ...".
-  // With the IS NULL form PostgreSQL gets an untyped NULL bind and fails with
-  // "could not determine data type of parameter". COALESCE lets it read the type
-  // from the column, and a null param collapses to "column = column" (always true).
   @Query(
       "SELECT t FROM Termin t WHERE "
           + "t.praxis.id = COALESCE(:praxisId, t.praxis.id) AND "
@@ -47,7 +43,6 @@ public interface TerminRepository extends JpaRepository<Termin, UUID> {
    * A single user's own slots (scoped by pseudonym), paged, with optional praxis, status and
    * start-time range filters. {@code null} disables that criterion.
    */
-  // Same COALESCE trick as filter() to keep optional parameters PostgreSQL safe.
   @Query(
       "SELECT t FROM Termin t WHERE t.pseudoUserId = :pseudoUserId AND "
           + "t.praxis.id = COALESCE(:praxisId, t.praxis.id) AND "

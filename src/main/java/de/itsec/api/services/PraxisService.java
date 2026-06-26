@@ -52,7 +52,6 @@ public class PraxisService {
     return praxisRepository.findAll(pageable);
   }
 
-  // Maps the request AddressDto onto the Address entity (DTO postalCode -> entity areaCode).
   private Address toAddress(AddressDto dto) {
     return Address.builder()
         .street(dto.street())

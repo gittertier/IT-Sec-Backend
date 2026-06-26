@@ -232,7 +232,6 @@ public class UserService {
   public User verifyPassword(String username, String currentPassword) {
     User user = getUserByUsername(username);
     if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-      // Public exception so a wrong password is a clean 400, not a 500.
       throw new PublicExceptions.IllegalArgumentsException("Current password is incorrect");
     }
     return user;

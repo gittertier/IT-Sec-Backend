@@ -146,8 +146,6 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     praxis.setLatitude(lat);
     praxis.setLongitude(lon);
     praxis = praxisRepository.save(praxis);
-    // Seed slots only for a newly created praxis, so a persistent DB does not pile
-    // up duplicate slots on every restart.
     seedSlots(praxis);
     return praxis;
   }
@@ -190,13 +188,10 @@ public class SetupDataLoader implements ApplicationListener<ContextRefreshedEven
     user.setUsername("staff@staff.com");
     user.setFirstName("staff");
     user.setLastName("staff");
-    // Email pre-verified like the other seed accounts, so the demo only has to do
-    // the TOTP step of onboarding (no SMTP needed for the seeded users).
     user.setEmailVerified(true);
     user.setRoles(Arrays.asList(staffRole));
     User saved = userRepository.save(user);
 
-    // Bind the staff member to their praxis pseudonymously, just like an appointment booking.
     staffPraxisService.assign(saved.getId(), praxis);
   }
 

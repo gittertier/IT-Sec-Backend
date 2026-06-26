@@ -27,10 +27,7 @@ public class TotpService {
             .label(username)
             .secret(secret)
             .issuer("Impfterminportal RLP")
-            // SHA1/6/30 are the TOTP defaults every authenticator assumes when a key
-            // is typed in by hand. The verifier in TotpConfig must use the same
-            // algorithm, otherwise a scanned QR (which carries the algorithm) would
-            // work while a manually entered key would produce wrong codes.
+            // SHA1 for compatibility with manually entered secrets in auth apps
             .algorithm(HashingAlgorithm.SHA1)
             .digits(6)
             .period(30)

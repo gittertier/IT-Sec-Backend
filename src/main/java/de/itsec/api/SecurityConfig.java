@@ -69,9 +69,6 @@ public class SecurityConfig {
               userRepository.findByUsername(auth.getName()).map(User::isTotpEnabled).orElse(false);
 
           if (totpEnabled) {
-            // Password was right, but the account has a second factor: keep the
-            // session "pending" (no real authentication yet) until the TOTP code
-            // is verified at /api/v1/public/login/totp.
             session.setAttribute(
                 "TOTP_PENDING",
                 new TotpPendingAuthentication(auth.getName(), auth.getAuthorities()));
@@ -83,9 +80,6 @@ public class SecurityConfig {
             res.setStatus(HttpServletResponse.SC_ACCEPTED);
             res.getWriter().write("{\"message\":\"totp required\"}");
           } else {
-            // No second factor set up yet: this is already a full login. The user
-            // can still set up TOTP afterwards from this session (e.g. right after
-            // registration), so we do not force them out here.
             SecurityContext context = SecurityContextHolder.createEmptyContext();
             context.setAuthentication(auth);
             SecurityContextHolder.setContext(context);
@@ -144,7 +138,7 @@ public class SecurityConfig {
                           AuthorizationManagers.not(
                               AuthorityAuthorizationManager.hasRole("ONBOARDING"))));
             })
-        // login filter before credentials checking for brute force
+
         .addFilterBefore(new RateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
         .addFilterBefore(totpFiler, UsernamePasswordAuthenticationFilter.class)
         .addFilterAt(jsonFilter, UsernamePasswordAuthenticationFilter.class)

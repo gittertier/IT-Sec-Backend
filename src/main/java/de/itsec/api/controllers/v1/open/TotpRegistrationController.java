@@ -38,7 +38,7 @@ public class TotpRegistrationController {
 
     User user = userService.getUserByUsername(userDetails.getUsername());
 
-    // Onboarding order: the email must be confirmed before 2FA can be set up.
+    // email must be confirmed before 2FA can be set up
     if (!user.isEmailVerified()) {
       throw new PublicExceptions.IllegalArgumentsException(
           "Please confirm your email before setting up 2FA");
@@ -87,8 +87,7 @@ public class TotpRegistrationController {
 
     userService.activateTotp(user.getUsername(), pendingSecret);
 
-    // Onboarding is now complete (email verified + TOTP enabled), so lift the
-    // session from ROLE_ONBOARDING to the account's real roles without a re-login.
+    // re-login to lift the onboarding role 
     UserDetails full = userDetailsService.loadUserByUsername(user.getUsername());
     req.changeSessionId();
     UsernamePasswordAuthenticationToken fullAuth =

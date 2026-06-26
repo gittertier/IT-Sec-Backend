@@ -67,9 +67,11 @@ public class TerminController {
     this.pseudoMappingService = pseudoMappingService;
   }
 
-  // Resolves the booker of a booked slot back to a real user (de-pseudonymization).
-  // Only ever called for a staff member viewing their own praxis, so the booking
-  // pseudonymity towards everyone else is preserved.
+  /** 
+   * Resolves the booker of a booked slot back to a real user (de-pseudonymization).
+   * Only ever called for a staff member viewing their own praxis, so the booking
+   * pseudonymity towards everyone else is preserved.
+   */
   private StaffTerminDto.Booker resolveBooker(Termin termin) {
     if (termin.getStatus() != TerminStatus.BOOKED || termin.getPseudoUserId() == null) {
       return null;
