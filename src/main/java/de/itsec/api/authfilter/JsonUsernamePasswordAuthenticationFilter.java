@@ -7,9 +7,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.springframework.http.MediaType;
-import de.itsec.api.services.LoginAttemptService;
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -19,11 +17,6 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
 
   private static final long MIN_AUTH_NANOS = TimeUnit.MILLISECONDS.toNanos(100);
   private final ObjectMapper objectMapper = new ObjectMapper();
-  private LoginAttemptService loginAttemptService;
-
-  public void setLoginAttemptService(LoginAttemptService loginAttemptService) {
-    this.loginAttemptService = loginAttemptService;
-  }
 
   @Override
   public Authentication attemptAuthentication(
@@ -41,29 +34,12 @@ public class JsonUsernamePasswordAuthenticationFilter extends UsernamePasswordAu
       String username = body.get(getUsernameParameter());
       String password = body.get(getPasswordParameter());
 
-      if (loginAttemptService != null && loginAttemptService.isLocked(username)) {
-        padToMinimum(start);
-        // Same generic failure as a wrong password (the failure handler returns 401
-        // "bad credentials"), so a lockout never reveals that the account exists.
-        throw new LockedException("Too many failed login attempts");
-      }
-
       UsernamePasswordAuthenticationToken authRequest =
           new UsernamePasswordAuthenticationToken(username, password);
+
       setDetails(request, authRequest);
       padToMinimum(start);
-      try {
-        Authentication auth = this.getAuthenticationManager().authenticate(authRequest);
-        if (loginAttemptService != null) {
-          loginAttemptService.recordSuccess(username);
-        }
-        return auth;
-      } catch (AuthenticationException e) {
-        if (loginAttemptService != null) {
-          loginAttemptService.recordFailure(username);
-        }
-        throw e;
-      }
+      return this.getAuthenticationManager().authenticate(authRequest);
     } catch (IOException e) {
       padToMinimum(start);
       throw new AuthenticationServiceException("Invalid JSON login payload", e);

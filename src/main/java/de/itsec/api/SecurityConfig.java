@@ -7,7 +7,6 @@ import de.itsec.api.authfilter.TotpPendingAuthenticationFilter;
 import de.itsec.api.data.authentication.User;
 import de.itsec.api.data.dto.TotpPendingAuthentication;
 import de.itsec.api.repositories.authentication.UserRepository;
-import de.itsec.api.services.LoginAttemptService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,7 +49,6 @@ public class SecurityConfig {
       AuthenticationConfiguration authConfig,
       TotpPendingAuthenticationFilter totpFiler,
       UserRepository userRepository,
-      LoginAttemptService loginAttemptService,
       @Value("${springdoc.api-docs.enabled:false}") boolean apiDocsEnabled) {
 
     AuthenticationManager authenticationManager = authConfig.getAuthenticationManager();
@@ -59,7 +57,6 @@ public class SecurityConfig {
         new JsonUsernamePasswordAuthenticationFilter();
     jsonFilter.setSecurityContextRepository(new HttpSessionSecurityContextRepository());
     jsonFilter.setAuthenticationManager(authenticationManager);
-    jsonFilter.setLoginAttemptService(loginAttemptService);
     jsonFilter.setFilterProcessesUrl("/api/v1/public/login");
     jsonFilter.setUsernameParameter("username");
     jsonFilter.setPasswordParameter("password");
